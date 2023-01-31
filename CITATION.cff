@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Mayerhoffer
+    given-names: Daniel
+    orcid: https://orcid.org/0000-0001-8841-407X
+  - family-names: Schulz
+    given-names: Jan
+    orcid: https://orcid.org/0000-0001-7745-3997
+title: "Inequality-Perception"
+version: 1.0.2
+date-released: 2023-31-01

@@ -1,12 +1,23 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+title: Inequality-Perception
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
 authors:
-  - family-names: Mayerhoffer
-    given-names: Daniel
-    orcid: https://orcid.org/0000-0001-8841-407X
-  - family-names: Schulz
-    given-names: Jan
-    orcid: https://orcid.org/0000-0001-7745-3997
-title: "Inequality-Perception"
-version: 1.0.2
-date-released: 2023-31-01
+  - given-names: Daniel Matthias
+    family-names: Mayerhoffer
+    orcid: 'https://orcid.org/0000-0001-8841-407X'
+  - given-names: Jan
+    family-names: Schulz
+    orcid: 'https://orcid.org/0000-0001-7745-3997'
+identifiers:
+  - type: url
+    value: 'https://github.com/mayerhoffer/Inequality-Perception'
+repository-code: 'https://github.com/mayerhoffer/Inequality-Perception'
+license: CC-BY-2.5
+version: '1.02'
+date-released: '2023-01-31'

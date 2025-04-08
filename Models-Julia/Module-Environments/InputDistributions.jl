@@ -24,6 +24,9 @@ function income_onegroup_lognormal!(population,sigma)
     return y
 end
 
+## Beta Distribution
+
+# alpha = beta = 0.5
 
 
 ## Multigroup functions
@@ -64,3 +67,5 @@ function real_gini!(Y)
 end
 
 end
+
+

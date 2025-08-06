@@ -24,6 +24,24 @@ function income_onegroup_lognormal!(population,sigma)
     return y
 end
 
+## Normal
+function income_onegroup_normal!(population)
+    norm = Normal(1)
+    y = rand(norm,population)
+    y = y/mean(y)
+    y  = sort(y)
+    return y
+end
+
+## Uniform
+function income_onegroup_uniform!(population)
+    unif = Uniform()
+    y = rand(unif,population)
+    y = y/mean(y)
+    y  = sort(y)
+    return y
+end
+
 ## Beta Distribution
 
 # alpha = beta = 0.5

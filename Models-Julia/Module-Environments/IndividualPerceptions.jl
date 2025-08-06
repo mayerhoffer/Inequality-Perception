@@ -16,6 +16,8 @@ function find_visible_nodes!(sorted_nodePropertyList,linksPerNodeList)
     return visiblenodelist
 end
 
+
+## Perception of properties among the visible nodes (i.e., the ego-network)
 function distri_perceptions!(visiblenodelist)
     perceptionlist_meanproperty = []
     perceptionlist_maxproperty = []

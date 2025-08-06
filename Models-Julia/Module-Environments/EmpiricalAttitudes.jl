@@ -2,7 +2,7 @@ using .HomophilicNetworks, .IndividualPerceptions
 
 
 ## Empirical Inputs
-using StatFiles, DataFrames, CSV, Statistics, StatsPlots, Random
+using StatFiles, DataFrames, CSV, Statistics, StatsPlots, Random, StatsBase
 
 
 ## USED ONLY ONCE TO SUBSET THE HUGE ALLBUS DATASET
@@ -10,7 +10,13 @@ using StatFiles, DataFrames, CSV, Statistics, StatsPlots, Random
 
 # CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\ALLBUS-Study.csv",ALLBUS_df)
 
-# ALLBUS_mig_2021 = ALLBUS_df[ALLBUS_df.year .== 2021, [:mi05, :mi06, :mi07, :mi08, :mi09, :mi10, :mi11, :mp16, :mp17, :mp18, :mp19]]
+ALLBUS_df = CSV.read("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\ALLBUS-Study.csv", DataFrame)
+
+
+# ALLBUS_mig_2021 = ALLBUS_df[ALLBUS_df.year .== 2021, [:mi05, :mi06, :mi07, :mi08, :mi09, :mi10, :mi11, :mp16, :mp17, :mp18, :mp19, :pa01]]
+
+ALLBUS_mig_2021 = ALLBUS_df[ALLBUS_df.year .== 2021, [:mi05, :mi06, :mi07, :mi08, :mi09, :mi10, :mi11, :mp16, :mp17, :mp18, :mp19, :pa01]]
+
 
 # variables = [:mi05, :mi06, :mi07, :mi08, :mi09, :mi10, :mi11, :mp16, :mp17, :mp18, :mp19]
 # ## Calculate frequencies for each variable
@@ -21,15 +27,14 @@ using StatFiles, DataFrames, CSV, Statistics, StatsPlots, Random
 #     println()
 # end
 
-# # Filter rows where no mp questions were asked
-# ALLBUS_mig_2021 = ALLBUS_mig_2021[ALLBUS_mig_2021.mp16 .!= -11, :]
+# Filter rows where no mp questions were asked
+ALLBUS_mig_2021 = ALLBUS_mig_2021[ALLBUS_mig_2021.mp16 .!= -11, :]
 
-# # Recode negative values to NA
-# foreach(col -> ALLBUS_mig_2021[!, col] .= ifelse.(ALLBUS_mig_2021[!, col] .< 0, missing, ALLBUS_mig_2021[!, col]), names(ALLBUS_mig_2021) )
+# Recode negative values to NA
+foreach(col -> ALLBUS_mig_2021[!, col] .= ifelse.(ALLBUS_mig_2021[!, col] .< 0, missing, ALLBUS_mig_2021[!, col]), names(ALLBUS_mig_2021) )
 
-# CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\ALLBUS_mig_2021.csv",ALLBUS_mig_2021)
 
-# dropmissing!(ALLBUS_mig_2021)
+dropmissing!(ALLBUS_mig_2021)
 
 
 
@@ -37,18 +42,43 @@ using StatFiles, DataFrames, CSV, Statistics, StatsPlots, Random
 # ALLBUS_mig_2021 = CSV.read("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\ALLBUS_mig_2021.csv", DataFrame)
 
 
-# mp_cols = names(ALLBUS_mig_2021, r"^mp")
+mp_cols = names(ALLBUS_mig_2021, r"^mp")
 
-# for col in mp_cols
-#     inverted_col = Symbol(string(col) * "-inv")  # Name for the inverted column
-#     ALLBUS_mig_2021[!, inverted_col] = 6 .- ALLBUS_mig_2021[!, col]  # Invert the scale
-# end
+for col in mp_cols
+    inverted_col = Symbol(string(col) * "-inv")  # Name for the inverted column
+    ALLBUS_mig_2021[!, inverted_col] = 6 .- ALLBUS_mig_2021[!, col]  # Invert the scale
+end
 
-# ALLBUS_mig_2021 = dropmissing!(select!(ALLBUS_mig_2021, Not(mp_cols)))
+ALLBUS_mig_2021 = dropmissing!(select!(ALLBUS_mig_2021, Not(mp_cols)))
 
-# ALLBUS_mig_2021[!, :mean] = [mean(skipmissing(row)) for row in eachrow(ALLBUS_mig_2021)]
+test = ALLBUS_mig_2021
 
-# #ALLBUS_mig_2021.mean = [isempty(skipmissing(row)) ? missing : mean(skipmissing(row)) for row in eachrow(ALLBUS_mig_2021)]
+pa01 = test[!, :pa01]
+# Frequencies of pa01 values:
+# Value 1 => 85
+# Value 2 => 160
+# Value 3 => 471
+# Value 4 => 452
+# Value 5 => 800
+# Value 6 => 544
+# Value 7 => 286
+# Value 8 => 148
+# Value 9 => 31
+# Value 10 => 34
+cum_pa01_freq = [85, 245, 716, 1168, 1968, 2512, 2798, 2946, 2977, 3011]
+
+test[!, :mean] = [mean(skipmissing(row)) for row in eachrow(select!(test, Not(:pa01)))]
+test[!, :pa01] = pa01
+test = sort!(test,:pa01)
+migmean = mean(test[!, :mean])
+test[!, :normalisedmean] = (test[!, :mean] / migmean)
+
+test = select!(test, [:normalisedmean, :pa01])
+CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\normalisedmean_pa01.csv",test)
+
+
+#ALLBUS_mig_2021[!, :mean] = [mean(skipmissing(row)) for row in eachrow(ALLBUS_mig_2021)]
+
 
 # histogram(ALLBUS_mig_2021.mean, bins=50, xlabel="Mean", ylabel="", title="Distribution of Mean Migration Attitudes", legend=false)
 
@@ -64,9 +94,9 @@ normalised_sorted_migattitudes = sorted_migattitudes / migmean
 
 ## Create network
 Random.seed!(1)
-linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(sorted_migattitudes,8)
+linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(test[!, :normalisedmean],14)
 
-visiblenodes = find_visible_nodes!(sorted_migattitudes,linkspernodeTHISRUN)
+visiblenodes = find_visible_nodes!(test[!, :normalisedmean],linkspernodeTHISRUN)
 
 perceivedmeanattitude,perceivedmaxattitude,perceivedminattitude, perceivedstdattitude = distri_perceptions!(visiblenodes)
 
@@ -74,14 +104,16 @@ perceivedattitudespan = perceivedmaxattitude .-perceivedminattitude
 mean(perceivedattitudespan)
 
 ## Create adjacency matrix
+popsize = length(test[!, :normalisedmean])
 adjmatr = create_adjacencymatrix!(linksTHISRUN,popsize)
 
 
-#CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\adjmatrix_allbus.csv",Tables.table(adjmatr))
+CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\adjmatrix_allbus_rho14.csv",Tables.table(adjmatr))
 #CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\sorted_migattitudes.csv",Tables.table(sorted_migattitudes))
 
+
 calculate_average_path_length!(adjmatr)
-#calculate_clustering_coefficient!(linksTHISRUN, linkspernodeTHISRUN)
+calculate_clustering_coefficient!(linksTHISRUN, linkspernodeTHISRUN)
 
 
 # Convert to DataFrame
@@ -178,7 +210,7 @@ Rho8 = segregation_perceptions!(100,normalised_sorted_migattitudes,8)
 CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\migattitudes_Rho8.csv",Tables.table(Rho8))
 Rho14 = segregation_perceptions!(100,normalised_sorted_migattitudes,14)
 CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\migattitudes_Rho14.csv",Tables.table(Rho14))
-Rho50 = segregation_perceptions!(100,normalised_sorted_migattitudes,14)
+Rho50 = segregation_perceptions!(100,normalised_sorted_migattitudes,50)
 CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\migattitudes_Rho50.csv",Tables.table(Rho50))
 
 
@@ -258,4 +290,37 @@ function calculate_objAshmansD_attitudeGroups!(sorted_inputattitudes)
 end
 
 objattitudeAshmansDs = calculate_objAshmansD_attitudeGroups!(normalised_sorted_migattitudes)
-CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\objAshmansDs_attitude_pop-splits.csv",Tables.table(objattitudeAshmansDs))
+(CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\objAshmansDs_attitude_pop-splits.csv",Tables.table(objattitudeAshmansDs))
+)
+
+
+function calculate_objAshmansD_attitudeExternalFreqs!(sorted_inputattitudes, cumulative_frequencies)
+    populationsize = round(length(sorted_inputattitudes))
+    AshmansDlist = []
+    for i in cumulative_frequencies
+        Random.seed!(i)
+        sizegroup1 = i
+        mu1obj = mean(sorted_inputattitudes[1:sizegroup1])
+        sigma1obj = std(sorted_inputattitudes[1:sizegroup1])
+        mu2obj = mean(sorted_inputattitudes[sizegroup1 + 1:populationsize])
+        sigma2obj = std(sorted_inputattitudes[sizegroup1 + 1:populationsize])
+        objAshmansD = abs(mu1obj - mu2obj) / sqrt(2 * (sigma1obj + sigma2obj))
+        push!(AshmansDlist, objAshmansD)
+    end
+    return AshmansDlist
+end
+
+blah = calculate_objAshmansD_attitudeExternalFreqs!(test[!,:normalisedmean], cum_pa01_freq)
+
+mean(dropmissing(blah))
+CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\objAshmansDs_attitude_left-right-splits.csv",Tables.table(blah))
+
+blubb =     (0.08049795697789655,
+0.15436281326481388,
+0.1847035890855836,
+0.1972994133912245,
+0.18875386521417137,
+0.20707079533155276,
+0.23595163163758207,
+0.2372609708903327,
+0.18708988864640663)

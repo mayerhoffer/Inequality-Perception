@@ -1,8 +1,8 @@
 module InputDistributions
 
-using StatsBase, Combinatorics, Distributions
+using StatsBase, Combinatorics, Distributions, SpecialFunctions
 
-export income_onegroup_exponential!, income_onegroup_lognormal!, income_pareto_tail!, real_gini!
+export income_onegroup_exponential!, ginitosigma!, income_onegroup_lognormal!, income_pareto_tail!, real_gini!
 
 ## Basic one-group functions
 
@@ -16,6 +16,15 @@ function income_onegroup_exponential!(population)
 end
 
 ## LogNormal
+function ginitosigma!(ginilist)
+    sigmalist = []
+    for i in ginilist
+        thissigma = 2 * erfinv(i)
+        push!(sigmalist,thissigma)
+    end
+    return sigmalist
+end
+
 function income_onegroup_lognormal!(population,sigma)
     lognorm = LogNormal(1,sigma)
     y = rand(lognorm,population)
@@ -85,5 +94,3 @@ function real_gini!(Y)
 end
 
 end
-
-

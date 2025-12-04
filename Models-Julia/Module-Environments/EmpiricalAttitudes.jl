@@ -2,7 +2,7 @@ using .HomophilicNetworks, .IndividualPerceptions
 
 
 ## Empirical Inputs
-using StatFiles, DataFrames, CSV, Statistics, StatsPlots, Random, StatsBase
+using StatFiles, DataFrames, CSV, Statistics, Random, StatsBase, StatsPlots
 
 
 ## USED ONLY ONCE TO SUBSET THE HUGE ALLBUS DATASET
@@ -10,7 +10,10 @@ using StatFiles, DataFrames, CSV, Statistics, StatsPlots, Random, StatsBase
 
 # CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\ALLBUS-Study.csv",ALLBUS_df)
 
-ALLBUS_df = CSV.read("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\ALLBUS-Study.csv", DataFrame)
+
+const working_directory = "C:/Users/dmayerh/Onedrive - Personal/OneDrive/MODUS/Projekte-Jan/Homophilic-Attitudes"
+mkpath(working_directory) 
+ALLBUS_df = CSV.read(joinpath(working_directory, "ALLBUS-Study.csv"), DataFrame)
 
 
 # ALLBUS_mig_2021 = ALLBUS_df[ALLBUS_df.year .== 2021, [:mi05, :mi06, :mi07, :mi08, :mi09, :mi10, :mi11, :mp16, :mp17, :mp18, :mp19, :pa01]]
@@ -40,7 +43,6 @@ dropmissing!(ALLBUS_mig_2021)
 
 ## Prepare data first time.
 # ALLBUS_mig_2021 = CSV.read("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\ALLBUS_mig_2021.csv", DataFrame)
-
 
 mp_cols = names(ALLBUS_mig_2021, r"^mp")
 
@@ -85,74 +87,18 @@ CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\normalisedm
 # sorted_migattitudes = sort(ALLBUS_mig_2021.mean)
 # popsize = length(sorted_migattitudes)
 
-ALLBUS_mig_2021 = CSV.read("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\sorted_migattitudes.csv", DataFrame)
+
+
+
+ALLBUS_mig_2021 = CSV.read(joinpath(working_directory, "sorted_migattitudes.csv"), DataFrame)
 sorted_migattitudes = ALLBUS_mig_2021[!,1]
 
 migmean = mean(sorted_migattitudes)
 normalised_sorted_migattitudes = sorted_migattitudes / migmean
 #CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\normalised_sorted_migattitudes.csv",Tables.table(normalised_sorted_migattitudes))
 
-## Create network
-Random.seed!(1)
-linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(test[!, :normalisedmean],14)
-
-visiblenodes = find_visible_nodes!(test[!, :normalisedmean],linkspernodeTHISRUN)
-
-perceivedmeanattitude,perceivedmaxattitude,perceivedminattitude, perceivedstdattitude = distri_perceptions!(visiblenodes)
-
-perceivedattitudespan = perceivedmaxattitude .-perceivedminattitude
-mean(perceivedattitudespan)
-
-## Create adjacency matrix
-popsize = length(test[!, :normalisedmean])
-adjmatr = create_adjacencymatrix!(linksTHISRUN,popsize)
 
 
-CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\adjmatrix_allbus_rho14.csv",Tables.table(adjmatr))
-#CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\sorted_migattitudes.csv",Tables.table(sorted_migattitudes))
-
-
-calculate_average_path_length!(adjmatr)
-calculate_clustering_coefficient!(linksTHISRUN, linkspernodeTHISRUN)
-
-
-# Convert to DataFrame
-data = DataFrame(X=sorted_migattitudes, Y=perceivedattitudespan)
-
-# Bin X values into intervals of 0.5
-bin_size = 0.5
-data.X_binned = round.(data.X ./ bin_size) .* bin_size  # Round to nearest 0.5
-
-
-# Create the boxplot
-@df data violin(
-    :X_binned, :Y,  # Grouped by binned categories
-    xlabel="Own Attitude",
-    ylabel="Perceived Attitude Span",
-#    title="Box-Whisker Plot of Perceived Attitude Span by Binned Own Attitude",
-    legend=false
-)
-@df data dotplot!(
-    :X_binned, :Y,  # Grouped by binned categories
-    xlabel="Own Attitude",
-    ylabel="Perceived Attitude Span",
-    legend=false
-)
-
-
-# Self-perceptions
-selfperceptions = self_perceptions!(visiblenodes,sorted_migattitudes)
-histogram(selfperceptions, bins=10, ylabel="", title="Selfperceptions", legend=false)
-maximum(selfperceptions)
-
-
-## Calculate bias in  segregation perception: Ashman's D
-## Calculate perceived segregation
-# mu1 mean of own ego network
-# mu2 of random other ego network
-# sigma1 = SD of own ego network
-# sigma2 = SD of random other ego network
-mu2subj = mean(sorted_migattitudes)
 
 function calculate_perceivedAshmansDs!(perceivedmeanattitude, perceivedstdattitude, muglobal, sigmaglobal)
     n = length(perceivedmeanattitude)
@@ -168,29 +114,27 @@ function calculate_perceivedAshmansDs!(perceivedmeanattitude, perceivedstdattitu
     return perceptionlist_localAshmansD, perceptionlist_globalAshmansD
 end
 
-perceivedDs, globalDs = calculate_perceivedAshmansDs!(perceivedmeanattitude, perceivedstdattitude, mean(sorted_migattitudes), std(sorted_migattitudes))
-subjAshmansD = mean(perceivedDs)
-
-histogram(perceivedDs, bins=50, ylabel="", title="Perceived Segregation (Ashman's D)", legend=false)
-
 
 
 ## Pipeline
 function segregation_perceptions!(repetitions,sorted_inputattitudes,Rho)
     u = ReentrantLock()
     simulationresults = [[] for i=1:(repetitions + 1)]
-    simulationresults[1]=["seed", "Rho", "perceivedmeanattitudes", "perceivedmaxattitudes", "perceivedminattitudes", "perceivedstdattitudes", "selfperceptions", "perceivedlocalAshmansDs","perceivedglobalAshmansDs"]
+    simulationresults[1]=["seed", "Rho", "perceivedmeanattitudes", "perceivedmaxattitudes", "perceivedminattitudes", "perceivedstdattitudes", "selfperceptions", "perceivedlocalAshmansDs","perceivedglobalAshmansDs", "avgshortestpathlength", "avgclustering", "degrees"]
 
     ## The network generation is the most computationally intense task here. It is split in multiple Threads if supported by the Julia environment. (Check in Settings!)
     Threads.@threads for i in 1:repetitions
         Random.seed!(i)
         linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(sorted_inputattitudes,Rho)
+        avgpathlengthTHISRUN = calculate_average_path_length!(create_adjacencymatrix!(linksTHISRUN,length(sorted_inputattitudes)))
+        avgclusteringTHISRUN = calculate_clustering_coefficient!(linksTHISRUN, linkspernodeTHISRUN)
+        degreesTHISRUN = calculate_degree_distribution!(linkspernodeTHISRUN)
         visiblenodes = find_visible_nodes!(sorted_inputattitudes,linkspernodeTHISRUN)
         perceivedmeanattitudes,perceivedmaxattitudes,perceivedminattitudes, perceivedstdattitudes = distri_perceptions!(visiblenodes)
         selfperceptions = self_perceptions!(visiblenodes,sorted_inputattitudes)
         perceivedlocalAshmansDs, perceivedglobalAshmansDs = calculate_perceivedAshmansDs!(perceivedmeanattitudes, perceivedstdattitudes, mean(sorted_inputattitudes), std(sorted_inputattitudes))
         thisrun = []
-        push!(thisrun, i, Rho, perceivedmeanattitudes, perceivedmaxattitudes, perceivedminattitudes, perceivedstdattitudes, selfperceptions, perceivedlocalAshmansDs, perceivedglobalAshmansDs)
+        push!(thisrun, i, Rho, perceivedmeanattitudes, perceivedmaxattitudes, perceivedminattitudes, perceivedstdattitudes, selfperceptions, perceivedlocalAshmansDs, perceivedglobalAshmansDs, avgpathlengthTHISRUN, avgclusteringTHISRUN, degreesTHISRUN)
         simulationresults[1 + i] = thisrun
     end
     simulationresultsnobrackets = []
@@ -200,6 +144,7 @@ function segregation_perceptions!(repetitions,sorted_inputattitudes,Rho)
     return simulationresultsnobrackets
     #income = income_onegroup_lognormal!(population,sigma)
 end
+
 
 
 Rho0 = segregation_perceptions!(100,normalised_sorted_migattitudes,0)
@@ -212,6 +157,45 @@ Rho14 = segregation_perceptions!(100,normalised_sorted_migattitudes,14)
 CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\migattitudes_Rho14.csv",Tables.table(Rho14))
 Rho50 = segregation_perceptions!(100,normalised_sorted_migattitudes,50)
 CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\migattitudes_Rho50.csv",Tables.table(Rho50))
+
+
+
+
+
+## Pipeline Just Clustering
+function clustering_perceptions!(repetitions,sorted_inputattitudes,Rho)
+    u = ReentrantLock()
+    simulationresults = [[] for i=1:(repetitions + 1)]
+    simulationresults[1]=["seed", "Rho", "avgclustering"]
+
+    ## The network generation is the most computationally intense task here. It is split in multiple Threads if supported by the Julia environment. (Check in Settings!)
+    Threads.@threads for i in 1:repetitions
+        Random.seed!(i)
+        linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(sorted_inputattitudes,Rho)
+        avgclusteringTHISRUN = calculate_clustering_coefficient!(linksTHISRUN, linkspernodeTHISRUN)
+        thisrun = []
+        push!(thisrun, i, Rho, avgclusteringTHISRUN)
+        simulationresults[1 + i] = thisrun
+    end
+    simulationresultsnobrackets = []
+    for i in simulationresults
+        push!(simulationresultsnobrackets,i...)
+    end
+    return simulationresultsnobrackets
+    #income = income_onegroup_lognormal!(population,sigma)
+end
+
+test = clustering_perceptions!(4,normalised_sorted_migattitudes,0) 
+
+clusteringRho0 = clustering_perceptions!(100,normalised_sorted_migattitudes,0)
+CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\clustering_migattitudes_Rho0.csv",Tables.table(clusteringRho0))
+clusteringRho4 = clustering_perceptions!(100,normalised_sorted_migattitudes,4)
+CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\clustering_migattitudes_Rho4.csv",Tables.table(clusteringRho4))
+clusteringRho8 = clustering_perceptions!(100,normalised_sorted_migattitudes,8)
+CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\clustering_migattitudes_Rho8.csv",Tables.table(clusteringRho8))
+clusteringRho14 = clustering_perceptions!(100,normalised_sorted_migattitudes,14)
+CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\Projekte-Jan\\Homophilic-Attitudes\\Simulation-Output\\clustering_migattitudes_Rho14.csv",Tables.table(clusteringRho14))
+
 
 
 

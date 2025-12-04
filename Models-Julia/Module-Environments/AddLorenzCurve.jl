@@ -1,5 +1,3 @@
-
-
 ## Adds Lorenz curve to df with individual income values
 
 const working_directory = "C:/Users/dmayerh/Onedrive - Personal/OneDrive/DATIpilot/Inhaltliches/Papers/Hirschman/SimOutput" 

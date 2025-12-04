@@ -145,12 +145,22 @@ function calculate_clustering_coefficient!(linklist, linksPerNodeList)
         push!(clustering_coefficients, clustering_coefficient)
     end
     
-    avgclustering = sum(clustering_coefficients) / length(linklist)
+    avgclustering = sum(clustering_coefficients) / length(linksPerNodeList)
     
     return avgclustering
 end
 
-
-
-
+## calculates degree distribution
+function calculate_degree_distribution!(linksPerNodeList)
+    degrees = []
+    for node_links in linksPerNodeList
+        degree = length(node_links) - 1  ## subtracting one to exclude self-link
+        push!(degrees, degree)
+    end
+    return degrees
 end
+
+
+
+
+end  ## module

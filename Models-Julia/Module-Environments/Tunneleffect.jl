@@ -3,8 +3,8 @@ using StatsBase, Random, SpecialFunctions
 using .InputDistributions, .HomophilicNetworks, .IndividualPerceptions
 
 
-## Define function
-function calculate_utility!(ownincomes, minperceptions, maxperceptions, meanperceptions, alpha, beta, gamma)
+## UTILITY CALCULATION
+function calculate_aggregate_utility!(ownincomes, minperceptions, maxperceptions, meanperceptions, alpha, beta, gamma)
     utilitysum = 0
     for i in 1:length(ownincomes)
         currentutility = ownincomes[i] + gamma * (alpha * maxperceptions[i] + beta * meanperceptions[i] + (1 - alpha - beta) * minperceptions[i])
@@ -14,62 +14,70 @@ function calculate_utility!(ownincomes, minperceptions, maxperceptions, meanperc
     return utilitysum
 end
 
-function calculate_utilities!(ownincomes, minperceptions, maxperceptions, meanperceptions, alphalist, betalist, gamma)
-    utilitiesperbetaperalpha = []
-    for i in 1:length(betalist)
-         betasperalpha = []
-        for j in 1:length(alphalist)
-            utilnow = calculate_utility!(ownincomes, minperceptions, maxperceptions, meanperceptions, alphalist[j], betalist[i], gamma)
-            push!(betasperalpha,utilnow)
-        end
-        push!(utilitiesperbetaperalpha, betasperalpha)
+
+function calculate_individual_utilities!(ownincomes, minperceptions, maxperceptions, meanperceptions, alpha, beta, gamma)
+    utilitylist = []
+    for i in 1:length(ownincomes)
+        currentutility = ownincomes[i] + gamma * (alpha * maxperceptions[i] + beta * meanperceptions[i] + (1 - alpha - beta) * minperceptions[i])
+        #currentutility = log(ownincomes[i]) * (beta) + log( maxperceptions[i] ^ alpha * minperceptions[i] ^ (1 - alpha) ) * (1 - beta)
+        push!(utilitylist, currentutility)
     end
-    return utilitiesperbetaperalpha
+    return utilitylist
 end
 
-
-function tunnel_perceptions!(repetitions,population,Rho,sigmaList,alphalist,betalist,gamma)
-    u = ReentrantLock()
-    alphalength = length(alphalist)
-    betalength = length(betalist)
-    simulationresults = [[] for i=1:(length(sigmaList) * repetitions * alphalength * betalength + 1)]
-    simulationresults[1]=["sigma", "seed", "Rho", "alpha", "beta", "gamma", "utilitysum"]
-    for i in 1:length(sigmaList)
-        thissigma = sigmaList[i]
-         ## The network generation is the most computationally intense task here. It is split in multiple Threads if supported by the Julia environment. (Check in Settings!)
-        #Threads.@threads for j in 1:repetitions
-        for j in 1:repetitions 
-            Random.seed!(j)
-            Y = income_onegroup_lognormal!(population,thissigma)
-            linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(Y,Rho)
-            perceptionlist_meanproperty, perceptionlist_maxproperty, perceptionlist_minproperty, perceptionlist_stdproperty = distri_perceptions!(find_visible_nodes!(Y,linkspernodeTHISRUN))
-            for k in 1:betalength
-                for l in 1:alphalength
-                    thisrun = []
-                    if alphalist[l] + betalist[k] <= 1
-                        thissum = calculate_utility!(Y, perceptionlist_minproperty, perceptionlist_maxproperty, perceptionlist_meanproperty, alphalist[l], betalist[k],gamma)
-                        push!(thisrun, thissigma, j, Rho, alphalist[l], betalist[k], gamma, thissum)
-                    else
-                        push!(thisrun, thissigma, j, Rho, alphalist[l], betalist[k], gamma, "NA")
-                    end
-                    simulationresults[1 + (i - 1) * repetitions * betalength * alphalength + (k-1) * repetitions * alphalength + (l-1) * repetitions + j] = thisrun
-                end
-            end
-        end
+function gini_coefficient(inputlist)
+    sortedlist = sort(inputlist)
+    n = length(sortedlist)
+    cumulativeincomes = cumsum(sortedlist)
+    totalincome = sum(sortedlist)
+    gini_numerator = 0
+    for i in 1:n
+        gini_numerator += (2 * i - n - 1) * sortedlist[i]
     end
-    # simulationresultsnobrackets = []
-    # for i in simulationresults
-    #     push!(simulationresultsnobrackets,i...)
-    # end
-    # return simulationresultsnobrackets
-    return simulationresults
-    #income = income_onegroup_lognormal!(population,sigma)
+    gini = gini_numerator / (n * totalincome)
+    return gini
 end
+
+## STANDAALONE FUNCTION TO CALCULATE UTILITIES OF MULTIPLE RUNS- NOT USED CURRENTLY
+# function calculate_utilities!(ownincomes, minperceptions, maxperceptions, meanperceptions, alphalist, betalist, gamma)
+#     utilitiesperbetaperalpha = []
+#     for i in 1:length(betalist)
+#          betasperalpha = []
+#         for j in 1:length(alphalist)
+#             utilnow = calculate_utility!(ownincomes, minperceptions, maxperceptions, meanperceptions, alphalist[j], betalist[i], gamma)
+#             push!(betasperalpha,utilnow)
+#         end
+#         push!(utilitiesperbetaperalpha, betasperalpha)
+#     end
+#     return utilitiesperbetaperalpha
+# end
+
+
+
+## REGRESSIVE REDISTRIBUTION
+function regressive_redistribution!(sortedinputlist,percentage, percbeneficiaries)
+    sortedincomelist = copy(sortedinputlist)
+    population = length(sortedincomelist)
+    numberbeneficiaries = round(Int, population * percbeneficiaries)
+    numberpayers = population - numberbeneficiaries
+    totalamountcollected = 0
+    for i in 1:numberpayers
+        amountcollected = sortedincomelist[i] * percentage
+        sortedincomelist[i] = sortedincomelist[i] - amountcollected
+        totalamountcollected = totalamountcollected + amountcollected
+    end
+    amountperbeneficiary = totalamountcollected / numberbeneficiaries
+    for j in (numberpayers + 1):population
+        sortedincomelist[j] = sortedincomelist[j] + amountperbeneficiary
+    end
+    return sortedincomelist
+end
+
 
 
 
 function tunnel_perceptions_gini_perceptionsave!(repetitions,population,Rho,giniList,alphalist,betalist,gamma)
-    #u = ReentrantLock()
+    u = ReentrantLock()
     alphalength = length(alphalist)
     betalength = length(betalist)
     simulationresults = [[] for i=1:(length(giniList) * repetitions * alphalength * betalength + 1)]
@@ -79,8 +87,8 @@ function tunnel_perceptions_gini_perceptionsave!(repetitions,population,Rho,gini
     for i in 1:length(giniList)
         thisgini = giniList[i]
          ## The network generation is the most computationally intense task here. It is split in multiple Threads if supported by the Julia environment. (Check in Settings!)
-        #Threads.@threads for j in 1:repetitions
-        for j in 1:repetitions 
+        Threads.@threads for j in 1:repetitions
+        #for j in 1:repetitions 
             Random.seed!(j)
             Y = income_onegroup_lognormal!(population,2 * erfinv(thisgini))
             linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(Y,Rho)
@@ -91,15 +99,18 @@ function tunnel_perceptions_gini_perceptionsave!(repetitions,population,Rho,gini
                 for l in 1:alphalength
                     thisrun = []
                     if alphalist[l] + betalist[k] <= 1
-                        thissum = calculate_utility!(Y, perceptionlist_minproperty, perceptionlist_maxproperty, perceptionlist_meanproperty, alphalist[l], betalist[k],gamma)
-                        push!(thisrun, thisgini, j, Rho, alphalist[l], betalist[k], gamma, thissum)
+                        thisutilities = calculate_individual_utilities!(Y, perceptionlist_minproperty, perceptionlist_maxproperty, perceptionlist_meanproperty, alphalist[l], betalist[k],gamma)
+                        thissum = sum(thisutilities)
+                        thisutilitiesgini = gini_coefficient(thisutilities)
+                        push!(thisrun, thisgini, j, Rho, alphalist[l], betalist[k], gamma, thisutilities, thissum, thisutilitiesgini)
                     else
-                        push!(thisrun, thisgini, j, Rho, alphalist[l], betalist[k], gamma, "NA")
+                        push!(thisrun, thisgini, j, Rho, alphalist[l], betalist[k], gamma, "NA", "NA", "NA")
                     end
                     simulationresults[1 + (i - 1) * repetitions * betalength * alphalength + (k-1) * repetitions * alphalength + (l-1) * repetitions + j] = thisrun
                 end
             end
         end
+        print("Completed gini value: ", thisgini)
     end
     # simulationresultsnobrackets = []
     # for i in simulationresults
@@ -110,11 +121,12 @@ function tunnel_perceptions_gini_perceptionsave!(repetitions,population,Rho,gini
     #income = income_onegroup_lognormal!(population,sigma)
 end
 
+
 ## Define lists for lognorm sigma and weights
 
 ginis = []
 push!(ginis,0)
-for i in 41:55
+for i in 1:55
     push!(ginis,i/100)
 end
 
@@ -137,7 +149,7 @@ Rho0SPLIT3, Rho0perceptionsSPLIT3 = tunnel_perceptions_gini_perceptionsave!(100,
 
 
 ## Transform into df for vosualisation and storage
-using DataFrames, Plots, Statistics, CSV
+using DataFrames, CategoricalArrays, Plots, Statistics, CSV, StatsPlots
 
 header = Rho0SPLIT3[1]                    # Extract header
 rows = Rho0SPLIT3[2:end]                  # Extract rows
@@ -152,10 +164,95 @@ CSV.write(joinpath(working_directory, "Rho0gini.csv"), outputdfRho0gini)
 
 
 
+
+
+
+
+Y = income_onegroup_lognormal!(1000,2 * erfinv(0.5))
+Ynew = regressive_redistribution!(Y,0.1, 0.05)
+
+
+function regressive_redistribution_perceptions!(repetitions,population,Rho,gini,alpha,beta,gamma,percentage, percbeneficiaries)
+    simulationresults = [[] for i=1:(repetitions + 1)]
+    simulationresults[1]=["seed", "Rho", "gini", "alpha", "beta", "gamma", "percentage", "percbeneficiaries", "deltautilities"]
+     ## The network generation is the most computationally intense task here. It is split in multiple Threads if supported by the Julia environment. (Check in Settings!)
+    for j in 1:repetitions 
+        Random.seed!(j)
+        Y = income_onegroup_lognormal!(population,2 * erfinv(gini))
+        linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(Y,Rho)
+        ## Utilities before redistribution
+        perceptionlist_meanproperty, perceptionlist_maxproperty, perceptionlist_minproperty, perceptionlist_stdproperty = distri_perceptions!(find_visible_nodes!(Y,linkspernodeTHISRUN))
+        utilitiesbeforeredistribution = calculate_individual_utilities!(Y, perceptionlist_minproperty, perceptionlist_maxproperty, perceptionlist_meanproperty, alpha, beta, gamma)
+        ## Apply redistribution
+        Yredistributed = regressive_redistribution!(Y,percentage, percbeneficiaries)
+        perceptionlist_meanproperty, perceptionlist_maxproperty, perceptionlist_minproperty, perceptionlist_stdproperty = distri_perceptions!(find_visible_nodes!(Yredistributed,linkspernodeTHISRUN))
+        utilitiesafterredistribution = calculate_individual_utilities!(Yredistributed, perceptionlist_minproperty, perceptionlist_maxproperty, perceptionlist_meanproperty, alpha, beta, gamma)
+        deltautilities = utilitiesafterredistribution - utilitiesbeforeredistribution
+        thisrun = [ j, Rho, gini, alpha, beta, gamma, percentage, percbeneficiaries, deltautilities ]
+        simulationresults[1 + j] = thisrun
+    end
+    return simulationresults
+end
+
+
+
+test0 = regressive_redistribution_perceptions!(10,1000,0,0.5,0.5,0,50,0.1,0.05)
+testdf0 = create_df!(test0)
+testdf = testdf0
+
+test1point5 = regressive_redistribution_perceptions!(10,1000,1.5,0.5,0.5,0,50,0.1,0.05)
+testdf1point5=create_df!(test1point5)
+testdf = vcat(testdf, testdf1point5; cols=:union)
+
+test4 = regressive_redistribution_perceptions!(10,1000,4,0.5,0.5,0,50,0.1,0.05)
+testdf4=create_df!(test4)
+testdf = vcat(testdf, testdf4; cols=:union)
+
+test8 = regressive_redistribution_perceptions!(10,1000,8,0.5,0.5,0,50,0.1,0.05)
+testdf8=create_df!(test8)
+testdf = vcat(testdf, testdf8; cols=:union)
+
+test14 = regressive_redistribution_perceptions!(10,1000,14,0.5,0.5,0,50,0.1,0.05)
+testdf14=create_df!(test14)
+testdf = vcat(testdf, testdf14; cols=:union)
+
+
+testdf = transform(testdf, :deltautilities => (x -> mean.(x)) => :mean_deltautilty)
+testdf = categorical(testdf.Rho; ordered=true)
+@df testdf violin(group=:Rho, :mean_deltautilty; xlabel="ρ", ylabel="mean(Δ utility)", legend=false)
+
+@df testdf violin(:Rho, :mean_deltautilty; xlabel="ρ", ylabel="mean(Δ utility)", legend=false)
+@df testdf scatter!(p, :Rho, :mean_deltautilty; ms=3, alpha=0.7)
+
+@df testdf violin(:Rho, :mean_deltautilty;
+    xlabel="ρ",
+    ylabel="mean(Δ utility)",
+    legend=false)
+
+
+long = reduce(vcat, (
+    DataFrame(Rho=testdf.Rho[r],
+              i=collect(eachindex(testdf.deltautilities[r])),
+              du=testdf.deltautilities[r])
+    for r in 1:nrow(testdf)
+))
+
+
+@df long scatter(:i, :du, group=:Rho,marker=:x, 
+                 ms=2, alpha=0.7,
+                 xlabel="income rank", ylabel="Δ utility",
+                 title="Change in individual utilities after regressive redistribution (gini = 0.5, α=0.5, β=0, γ=50, 10% redistributed, 5% beneficiaries)")
+
+
+
 ## Create Perception df for visualisation and storage
-header = Rho0perceptionsSPLIT3[1]                    # Extract header
-rows = Rho0perceptionsSPLIT3[2:end]                  # Extract rows
-outputdfRho0perceptionsGini = DataFrame([Symbol(h) => [row[i] for row in rows] for (i, h) in enumerate(header)])
+function create_df!(inputdataname)
+    header = inputdataname[1]                    # Extract header
+    rows = inputdataname[2:end]                  # Extract rows
+    outputdf = DataFrame([Symbol(h) => [row[i] for row in rows] for (i, h) in enumerate(header)])
+    return outputdf
+end
+
 
 CSV.write(joinpath(working_directory, "Rho0perceptionsGini.csv"), outputdfRho0perceptionsGini)
 

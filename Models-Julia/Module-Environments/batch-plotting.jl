@@ -1,4 +1,4 @@
-using DataFrames, Statistics, Plots, CSV
+using DataFrames, Statistics, Plots, CSV, Measures
 
 # ------------------------------------------
 # CONFIG
@@ -12,14 +12,19 @@ const FILE_EXT = ".svg"       # switch to ".jpg" if you prefer JPEG
 # ------------------------------------------
 
 # Load CSV
-workingdf = outputdfRho0gini # CSV.read(joinpath(working_directory, "Rho4.csv"), DataFrame)
-workingdf = CSV.read(joinpath(working_directory, "Rho4gini.csv"), DataFrame)
+#workingdf = outputdfRho0gini # CSV.read(joinpath(working_directory, "Rho4.csv"), DataFrame)
+workingdf = CSV.read(joinpath(working_directory, "rho8PICTURES.csv"), DataFrame)
 
-if eltype(workingdf.utilitysum) <: AbstractString
-    transform!(workingdf, :utilitysum => ByRow(x -> begin
+
+## Normalise happiness based on gini = 0 mean
+mean0gini = mean(skipmissing(Float64.(workingdf[workingdf.gini .== 0, :utilitysum])))
+workingdf.utilitysumnormalised = Float64.(workingdf.utilitysum) ./ mean0gini
+
+if eltype(workingdf.utilitysumnormalised) <: AbstractString
+    transform!(workingdf, :utilitysumnormalised => ByRow(x -> begin
         y = tryparse(Float64, x)
         y === nothing ? NaN : y
-    end) => :utilitysum)
+    end) => :utilitysumnormalised)
 end
 
 # Snap α,β to two decimals ⇒ integer indices 0..100 (stable filenames)
@@ -34,19 +39,20 @@ gdf = groupby(df, [:aidx, :bidx])
 
 # Plot a single (α,β) selection
 function plot_pair(sel::AbstractDataFrame, α::Float64, β::Float64)
-    p = scatter(sel.gini, sel.utilitysum;
-        xlabel = "Gini",
-        ylabel = "Aggregate Happiness",
-        title  = "Impact of Inequality on Happiness (α=$(α), β=$(β))",
+    p = scatter(sel.gini, sel.utilitysumnormalised;
+        xlabel = "Gini Coefficient",
+        ylabel = "Aggregate Subjective Wellbeing",
+        title  = "Inequality and Wellbeing α=$(α), β=$(β)",
         legend = false,
         size   = (900, 560),
+        margin = 5mm,
         markersize = 2,
         markerstrokewidth = 0.5,
-        markercolor = "#A259FF",   # purple points
+        markercolor = "#9fa29e",   # purple points
         alpha = 0.4                # semi-transparent points
     )
 
-    g = combine(groupby(sel, :gini), :utilitysum => mean => :mean_utilitysum)
+    g = combine(groupby(sel, :gini), :utilitysumnormalised => mean => :mean_utilitysum)
     sort!(g, :gini)
 
     plot!(p, g.gini, g.mean_utilitysum;
@@ -54,8 +60,8 @@ function plot_pair(sel::AbstractDataFrame, α::Float64, β::Float64)
         marker = :circle,
         markersize = 5,
         label = "mean utilitysum",
-        color = "#FFE164",         # yellow line
-        markercolor = "#FFE164",   # yellow markers
+        color = "#000000",         # yellow line
+        markercolor = "#000000",   # yellow markers
         alpha = 1.0                # non-transparent
     )
 
@@ -99,7 +105,7 @@ html = """
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Gini on Aggregate Happiness — static gallery</title>
+<title>Effect of Inequality on Aggregate Subjective Wellbeing</title>
 <style>
  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 16px; }
  .row { display:flex; gap: 16px; align-items:flex-start; flex-wrap: wrap; }
@@ -120,7 +126,7 @@ html = """
 </head>
 
 <body>
-  <h2>Gini vs Aggregate Happiness</h2>
+  <h2>Gini vs Aggregate Subjective Wellbeing</h2>
 
   <div class="row">
     <!-- Left column: rho dropdown above the sliders -->
@@ -162,10 +168,10 @@ const EXT = "%EXT%";          // ".svg" or ".jpg"
 
 /* Define your rho options here (label shown, folder name used) */
 const RHO_OPTIONS = [
-  { label: "ρ = 0", folder: "plotsrho0_gini" },
+  { label: "ρ = 0", folder: "plotsrho0_gininorm" },
 //  { label: "ρ = 1.5", folder: "plotsrho1point5_sigma" },
-  { label: "ρ = 4", folder: "plotsrho4_gini" },
-//  { label: "ρ = 8", folder: "plotsrho8_sigma" },
+  { label: "ρ = 4", folder: "plotsrho4_gininorm" },
+  { label: "ρ = 8", folder: "plotsrho8_gininorm" },
 ];
 
 const alpha    = document.getElementById('alpha');
@@ -261,8 +267,8 @@ html = replace(html,
     "%EXT%" => FILE_EXT,
 )
 
-open(joinpath(working_directory, "happiness_gini.html"), "w") do io
+open(joinpath(working_directory, "happiness_gini_normalised.html"), "w") do io
     write(io, html)
 end
 
-println("Open: ", joinpath(working_directory, "happiness_gini.html"))
+println("Open: ", joinpath(working_directory, "happiness_gini_normalised.html"))

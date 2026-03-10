@@ -217,7 +217,7 @@ to SETUP-NETWORK
   let myincome 0
   ask turtles [
     set myincome income
-    let differencelist []
+;;    let differencelist []   ;; for html version
     let attachto rnd:weighted-n-of newLinks (other turtles) [1 / (e ^ (homophilystrength * abs (income - myincome) )) ]       ;; draws links weighted according to income distance and homophily
 ;; allows rebuilding the rnd:weighted-n-of function without an extension (e.g. for NetLogo-Web/.html versions)
 ;    foreach distribution-list [ x -> if (x != myincome) [set differencelist (fput  (e ^ (homophilystrength * abs (x - myincome) ) ) differencelist)] ]
@@ -586,7 +586,7 @@ INPUTBOX
 1089
 560
 distributionFile
-exp_israel.csv
+liste500.csv
 1
 0
 String
@@ -640,7 +640,7 @@ newLinks
 newLinks
 1
 10
-5.0
+9.0
 1
 1
 NIL
@@ -933,7 +933,7 @@ SWITCH
 888
 assess-wagegap?
 assess-wagegap?
-0
+1
 1
 -1000
 
@@ -1406,7 +1406,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.0
+NetLogo 6.4.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
@@ -1780,7 +1780,7 @@ NetLogo 6.2.0
       <value value="4"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="experiment (1)" repetitions="1" runMetricsEveryStep="true">
     <setup>RUN-ALL</setup>
     <go>stop</go>
     <metric>g-perceptionList-underpriv</metric>
@@ -1928,7 +1928,7 @@ NetLogo 6.2.0
       <value value="500"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="experiment (2)" repetitions="1" runMetricsEveryStep="true">
     <setup>RUN-ALL</setup>
     <go>stop</go>
     <metric>mean-privList-priv</metric>

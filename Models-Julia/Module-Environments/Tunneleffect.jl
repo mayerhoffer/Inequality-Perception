@@ -2,6 +2,16 @@ using StatsBase, Random, SpecialFunctions
 
 using .InputDistributions, .HomophilicNetworks, .IndividualPerceptions
 
+using Distributions
+
+
+
+
+##NEW CELL
+alphas = [0.02, 0.979, 0.01]
+
+rand(Dirichlet(alphas),1)
+
 
 ## UTILITY CALCULATION
 function calculate_aggregate_utility!(ownincomes, minperceptions, maxperceptions, meanperceptions, alpha, beta, gamma)
@@ -81,28 +91,30 @@ function tunnel_perceptions_gini_perceptionsave!(repetitions,population,Rho,gini
     alphalength = length(alphalist)
     betalength = length(betalist)
     simulationresults = [[] for i=1:(length(giniList) * repetitions * alphalength * betalength + 1)]
-    simulationresults[1]=["gini", "seed", "Rho", "alpha", "beta", "gamma", "utilitysum"]
+    simulationresults[1]=["gini", "seed", "Rho", "alpha", "beta", "gamma", "utilitysum"] #, "utilitiesgini"]
+     ## The network generation is the most computationally intense task here. It is split in multiple Threads if supported by the Julia environment. (Check in Settings!)
     listperceptions = [[] for i=1:(length(giniList) * repetitions + 1)]
     listperceptions[1]=["gini", "seed", "Rho", "Y", "perceptionsOfMEAN", "perceptionsOfMIN", "perceptionsOfMAX"]
     for i in 1:length(giniList)
         thisgini = giniList[i]
          ## The network generation is the most computationally intense task here. It is split in multiple Threads if supported by the Julia environment. (Check in Settings!)
-        Threads.@threads for j in 1:repetitions
-        #for j in 1:repetitions 
+        #Threads.@threads for j in 1:repetitions
+        for j in 1:repetitions 
             Random.seed!(j)
             Y = income_onegroup_lognormal!(population,2 * erfinv(thisgini))
             linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(Y,Rho)
             perceptionlist_meanproperty, perceptionlist_maxproperty, perceptionlist_minproperty, perceptionlist_stdproperty = distri_perceptions!(find_visible_nodes!(Y,linkspernodeTHISRUN))
             thisrunperceptions = [ thisgini, j, Rho, Y, perceptionlist_meanproperty, perceptionlist_minproperty, perceptionlist_maxproperty ]
-            listperceptions[1 + (i - 1) * repetitions + j] = thisrunperceptions
+            #listperceptions[1 + (i - 1) * repetitions + j] = thisrunperceptions
             for k in 1:betalength
                 for l in 1:alphalength
                     thisrun = []
                     if alphalist[l] + betalist[k] <= 1
-                        thisutilities = calculate_individual_utilities!(Y, perceptionlist_minproperty, perceptionlist_maxproperty, perceptionlist_meanproperty, alphalist[l], betalist[k],gamma)
-                        thissum = sum(thisutilities)
-                        thisutilitiesgini = gini_coefficient(thisutilities)
-                        push!(thisrun, thisgini, j, Rho, alphalist[l], betalist[k], gamma, thisutilities, thissum, thisutilitiesgini)
+                        thissum = calculate_aggregate_utility!(Y, perceptionlist_minproperty, perceptionlist_maxproperty, perceptionlist_meanproperty, alphalist[l], betalist[k], gamma)
+                        #thisutilities = calculate_individual_utilities!(Y, perceptionlist_minproperty, perceptionlist_maxproperty, perceptionlist_meanproperty, alphalist[l], betalist[k],gamma)
+                        #thissum = sum(thisutilities)
+                        #thisutilitiesgini = gini_coefficient(thisutilities)
+                        push!(thisrun, thisgini, j, Rho, alphalist[l], betalist[k], gamma, thissum) #, thisutilitiesgini)
                     else
                         push!(thisrun, thisgini, j, Rho, alphalist[l], betalist[k], gamma, "NA", "NA", "NA")
                     end
@@ -110,16 +122,17 @@ function tunnel_perceptions_gini_perceptionsave!(repetitions,population,Rho,gini
                 end
             end
         end
-        print("Completed gini value: ", thisgini)
+        println("Completed gini value: ", thisgini)
     end
     # simulationresultsnobrackets = []
     # for i in simulationresults
     #     push!(simulationresultsnobrackets,i...)
     # end
     # return simulationresultsnobrackets
-    return simulationresults, listperceptions
+    return simulationresults #, listperceptions
     #income = income_onegroup_lognormal!(population,sigma)
 end
+
 
 
 ## Define lists for lognorm sigma and weights
@@ -138,9 +151,11 @@ for i in 1:100
 end
 betas = alphas
 
+alphas = [0, 0.02, 0.03, 0.04, 0.05, 0.5]
+betas = [0.98, 0.97, 0.96, 0.95, 0.5, 1]
 
 ## repetitions,population,Rho,sigmaList,alphalist,betalist,gamma
-Rho0 = tunnel_perceptions!(100,1000,0,sigmas,alphas,betas, 50)
+rho8PICTURES = tunnel_perceptions_gini_perceptionsave!(100,1000,8,ginis,alphas,betas,50)
 
 
 Rho0SPLIT3, Rho0perceptionsSPLIT3 = tunnel_perceptions_gini_perceptionsave!(100,1000,0,ginis,alphas,betas,50)
@@ -149,18 +164,28 @@ Rho0SPLIT3, Rho0perceptionsSPLIT3 = tunnel_perceptions_gini_perceptionsave!(100,
 
 
 ## Transform into df for vosualisation and storage
-using DataFrames, CategoricalArrays, Plots, Statistics, CSV, StatsPlots
 
-header = Rho0SPLIT3[1]                    # Extract header
-rows = Rho0SPLIT3[2:end]                  # Extract rows
-outputdfRho0gini = DataFrame([Symbol(h) => [row[i] for row in rows] for (i, h) in enumerate(header)])
+## Create Perception df for visualisation and storage
+function create_df!(inputdataname)
+    header = inputdataname[1]                    # Extract header
+    rows = inputdataname[2:end]                  # Extract rows
+    outputdf = DataFrame([Symbol(h) => [row[i] for row in rows] for (i, h) in enumerate(header)])
+    return outputdf
+end
 
-dfofinterest = outputdfRho0gini
-outputdfRho0gini = dfofinterest[.!((dfofinterest.alpha .+ dfofinterest.beta) .> 1), :]
+using DataFrames, CSV
+
+rho8PICTURESdf = create_df!(rho8PICTURES)
+dfofinterest = rho8PICTURESdf
+dfofinterest = dfofinterest[.!((dfofinterest.alpha .+ dfofinterest.beta) .> 1), :]
+mean0gini = mean(skipmissing(Float64.(dfofinterest[dfofinterest.gini .== 0, :utilitysum])))
+dfofinterest.utilitysumnormalised = Float64.(dfofinterest.utilitysum) ./ mean0gini
+
+outputdf= dfofinterest
 
 const working_directory = "C:/Users/dmayerh/Onedrive - Personal/OneDrive/DATIpilot/Inhaltliches/Papers/Hirschman/SimOutput"
 
-CSV.write(joinpath(working_directory, "Rho0gini.csv"), outputdfRho0gini)
+CSV.write(joinpath(working_directory, "rho8PICTURES.csv"), outputdf)
 
 
 

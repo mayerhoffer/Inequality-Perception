@@ -5,7 +5,6 @@ using StatsBase, Combinatorics, Distributions, SpecialFunctions
 export income_onegroup_exponential!, ginitosigma!, income_onegroup_lognormal!, income_pareto_tail!, real_gini!
 
 ## Basic one-group functions
-
 ## Exponential
 function income_onegroup_exponential!(population)
     exb = Exponential(1)
@@ -17,7 +16,7 @@ end
 
 ## LogNormal
 function ginitosigma!(ginilist)
-    sigmalist = []
+    sigmalist = Float64[]
     for i in ginilist
         thissigma = 2 * erfinv(i)
         push!(sigmalist,thissigma)
@@ -70,7 +69,7 @@ function income_pareto_tail!(p,m,population)
         y = y/(mean(y)*(1+m)*(1-p))
         ycap = rand(paredo,Int(round(p*population)))
         ycap = (ycap/mean(ycap))*(m/((1+m)*p))
-        ycap - sort(ycap)
+        sort!(ycap)
         yall = vcat(y,ycap)
         yall = sort(yall)
         y  = sort(y)
@@ -92,5 +91,6 @@ function real_gini!(Y)
     xx = sort(Y)
   2*(sum(collect(1:n).*xx))/(n*sum(xx))-1
 end
+
 
 end

@@ -3,7 +3,7 @@ using DataFrames, Statistics, Plots, CSV, Measures
 # ------------------------------------------
 # CONFIG
 # ------------------------------------------
-const working_directory = "C:/Users/dmayerh/Onedrive - Personal/OneDrive/DATIpilot/Inhaltliches/Papers/Hirschman/SimOutput" 
+const working_directory = pwd()  # set to your desired output folder "" 
 const out_img_dir = joinpath(working_directory, "plots")
 mkpath(out_img_dir)
 
@@ -11,8 +11,11 @@ mkpath(out_img_dir)
 const FILE_EXT = ".svg"       # switch to ".jpg" if you prefer JPEG
 # ------------------------------------------
 
+# Initialise DF to generate pictures from
+#Use cached DF
+#workingdf = outputdfRho0gini
+
 # Load CSV
-#workingdf = outputdfRho0gini # CSV.read(joinpath(working_directory, "Rho4.csv"), DataFrame)
 workingdf = CSV.read(joinpath(working_directory, "rho8PICTURES.csv"), DataFrame)
 
 

@@ -52,3 +52,6 @@ maximum(selfperceptions)
 # sigma1 = SD of own ego network
 # sigma2 = SD of random other ego network
 mu2subj = mean(sorted_migattitudes)
+
+
+1 + 1

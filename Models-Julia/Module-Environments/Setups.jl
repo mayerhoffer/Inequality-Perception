@@ -1,4 +1,17 @@
+include("InputDistributions.jl")
+using .InputDistributions
 
+include("HomophilicNetworks.jl")
+using .HomophilicNetworks
+
+
+income_onegroup_exponential!(1000)
+
+
+cd("Models-Julia/Module-Environments")
+
+pwd()
+readdir()
 
 # Define a global output directory
 const working_directory = "C:/Users/dmayerh/Onedrive - Personal/OneDrive/DATIpilot/Inhaltliches/Papers/Hirschman/SimOutput"

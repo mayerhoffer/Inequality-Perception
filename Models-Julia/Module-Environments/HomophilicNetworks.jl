@@ -1,8 +1,6 @@
 module HomophilicNetworks
 
-using StatsBase, LightGraphs
-
-export homophilic_linkage!, create_adjacencymatrix!, calculate_average_path_length!, calculate_clustering_coefficient!, perfect_homophilic_linkage!
+using StatsBase, Graphs
 
 ## --------------------------------------------------------------------- Network Generation ---------------------------------------------------------------------
 
@@ -86,6 +84,7 @@ function perfect_homophilic_linkage!(Distri)
 end
 
 
+
 ## --------------------------------------------------------------------- Helper Functions ---------------------------------------------------------------------
 ## Draws link-neighbours using a weights matrix
 ## If dividing the weights by their sum and working with Float32, this would be a great candidate for GPU computing
@@ -116,7 +115,7 @@ end
 function calculate_average_path_length!(adjacencymatrix)
     networkgraph = Graph(adjacencymatrix) ## creates a network graph from the input adjacencymatrix
     avgpathlengthssum = 0
-    for i in nv(networkgraph)
+    for i in 1:nv(networkgraph)
         mypaths = dijkstra_shortest_paths(networkgraph, i)
         avgpathlengthssum += mean(mypaths.dists)
     end
@@ -161,6 +160,7 @@ function calculate_degree_distribution!(linksPerNodeList)
 end
 
 
+export homophilic_linkage!, create_adjacencymatrix!, calculate_average_path_length!, calculate_clustering_coefficient!, perfect_homophilic_linkage!
 
 
 end  ## module

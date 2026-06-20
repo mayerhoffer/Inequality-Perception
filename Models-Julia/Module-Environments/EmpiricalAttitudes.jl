@@ -1,4 +1,8 @@
-using .HomophilicNetworks, .IndividualPerceptions
+include("InputDistributions.jl")
+using .InputDistributions
+
+include("HomophilicNetworks.jl")
+using .HomophilicNetworks
 
 
 ## Empirical Inputs

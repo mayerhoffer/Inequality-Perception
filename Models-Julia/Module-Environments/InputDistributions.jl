@@ -51,8 +51,13 @@ function income_onegroup_uniform!(population)
 end
 
 ## Beta Distribution
-
-# alpha = beta = 0.5
+function income_onegroup_beta(population, alpha, beta)
+    betadist = Beta(alpha, beta)
+    y = rand(betadist, population)
+    y = y/mean(y)
+    y  = sort(y)
+    return y
+end
 
 
 ## Multigroup functions

@@ -72,4 +72,10 @@ df.income_decile = ifelse.(df.income .< deciles[2], "D01",
 
 
 ## Finally, create the boxplot for the deciles
-boxplot(df.income_decile, df.degree, xlabel="Income Decile", ylabel="Degree", title="Degree by Income Decile", legend=false)
+boxplot(df.income_decile, df.degree, xlabel="Income Decile", ylabel="Degree", title="Degree by Income Decile", legend=false)#
+
+
+
+
+## Plot the histogram of test
+histogram(test, bins=0:maximum(test), xticks=0:maximum(test), xlabel="Degree", ylabel="Frequency", title="Degree Distribution")

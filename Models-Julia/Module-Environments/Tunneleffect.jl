@@ -50,8 +50,7 @@ end
 
 
 
-
-function tunnel_perceptions_gini_perceptionsave!(repetitions,population,Rho,giniList,alphalist,betalist,gamma)
+function tunnel_perceptions_gini_perceptionsave(repetitions,population,Rho,giniList,alphalist,betalist,gamma)
     #u = ReentrantLock()
     alphalength = length(alphalist)
     betalength = length(betalist)
@@ -65,8 +64,11 @@ function tunnel_perceptions_gini_perceptionsave!(repetitions,population,Rho,gini
         #Threads.@threads for j in 1:repetitions
         for j in 1:repetitions 
             Random.seed!(j)
-            Y = income_onegroup_lognormal!(population,2 * erfinv(thisgini))
-            linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(Y,Rho)
+            ## Toggle between rho-based (including for a random network for rho = 0) and perfect homophily here
+            # Y = income_onegroup_lognormal!(population,2 * erfinv(thisgini))
+            # linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(Y,Rho)
+            Y = InputDistributions.expectedvalue_onegroup_lognormal(population,2 * erfinv(thisgini))
+            linksTHISRUN, linkspernodeTHISRUN = HomophilicNetworks.perfect_homophilic_linkage(Y) 
             perceptionlist_meanproperty, perceptionlist_maxproperty, perceptionlist_minproperty, perceptionlist_stdproperty = distri_perceptions!(find_visible_nodes!(Y,linkspernodeTHISRUN))
             thisrunperceptions = [ thisgini, j, Rho, Y, perceptionlist_meanproperty, perceptionlist_minproperty, perceptionlist_maxproperty ]
             listperceptions[1 + (i - 1) * repetitions + j] = thisrunperceptions
@@ -101,7 +103,7 @@ end
 ## Define lists for lognorm sigma and weights
 ginis = []
 push!(ginis,0)
-for i in 41:55
+for i in 0:55
     push!(ginis,i/100)
 end
 
@@ -117,28 +119,30 @@ betas = alphas
 ## repetitions,population,Rho,sigmaList,alphalist,betalist,gamma
 Rho0 = tunnel_perceptions!(100,1000,0,sigmas,alphas,betas, 50)
 
+perfectHomophily = tunnel_perceptions_gini_perceptionsave(1,1000,"perfectHomophily",ginis,alphas,betas, 50)
+
 ## Sometimes, splitting the simulation is faviurable if running out of RAM (and swap space) is a concern. In this case, the results of multiple runs can be merged in the end. The following code is an example for how to do this for the Rho0 runs. Adjust file names and variable names as needed for other runs.
 Rho0SPLIT3, Rho0perceptionsSPLIT3 = tunnel_perceptions_gini_perceptionsave!(100,1000,0,ginis,alphas,betas,50)
 
 
 
 ## TRANSFORM to DF and SAVE
-const working_directory = pwd()  # set to your desired output folder "" 
+const working_directory = mywd #pwd()  # set the desired output folder "" 
 
 ## Function to create a perception df for visualisation and storage
 function create_df!(inputdataname)
     header = inputdataname[1]                    # Extract header
     rows = inputdataname[2:end]                  # Extract rows
     outputdf = DataFrame([Symbol(h) => [row[i] for row in rows] for (i, h) in enumerate(header)])
-    return outputdf[.!((dfofinterest.alpha .+ dfofinterest.beta) .> 1), :]
+    return outputdf[.!((outputdf.alpha .+ outputdf.beta) .> 1), :]
 end
 
 ## Transform into df for visualisation and storage
 using DataFrames, Plots, Statistics, CSV, StatsPlots
 
 
-outputdfRho0SPLIT3 = create_df!(Rho0SPLIT3)
-CSV.write(joinpath(working_directory, "Rho0perceptionsGini.csv"), outputdfRho0perceptionsGini)
+perfectHomophilytest = create_df!(perfectHomophily[1])
+CSV.write(joinpath(working_directory, "perfectHomophilytest.csv"), perfectHomophilytest)
 
 
 

@@ -48,7 +48,7 @@ function homophilic_linkage!(Distri,Rho)
     return linklist, linksPerNodeList
 end
 
-function perfect_homophilic_linkage!(Distri)
+function perfect_homophilic_linkage(Distri)
     populationsize = length(Distri)
     linklist = []
     for i in 1:length(Distri)

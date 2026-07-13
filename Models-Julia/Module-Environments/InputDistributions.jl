@@ -32,6 +32,19 @@ function income_onegroup_lognormal!(population,sigma)
     return y
 end
 
+## LogNormal Expected Value
+function expectedvalue_onegroup_lognormal(population,sigma)
+    lognorm = LogNormal(1,sigma)
+    permilles = []
+    for i in 1:1000
+        push!(permilles,i/1001)
+    end
+    y = quantile.(lognorm,permilles)
+    y = y/mean(y)
+    y = sort(y)
+    return y
+end
+
 ## Normal
 function income_onegroup_normal!(population)
     norm = Normal(1)
@@ -54,6 +67,20 @@ end
 function income_onegroup_beta(population, alpha, beta)
     betadist = Beta(alpha, beta)
     y = rand(betadist, population)
+    y = y/mean(y)
+    y  = sort(y)
+    return y
+end
+
+
+function income_onegroup_twobetamixture(population, alpha1, beta1, alpha2, beta2)
+    betadist1 = Beta(alpha1, beta1)
+    betadist2 = Beta(alpha2, beta2)
+    y1 = rand(betadist1, population)
+    y2 = rand(betadist2, population)
+    y = (y1 + y2)
+    y = y.-minimum(y)
+    y = y/maximum(y)
     y = y/mean(y)
     y  = sort(y)
     return y

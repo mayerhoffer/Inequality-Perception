@@ -3,7 +3,7 @@ using DataFrames, Statistics, Plots, CSV, Measures
 # ------------------------------------------
 # CONFIG
 # ------------------------------------------
-const working_directory = pwd()  # set to your desired output folder "" 
+const working_directory = mywd #pwd()  # set to your desired output folder "" 
 const out_img_dir = joinpath(working_directory, "plots")
 mkpath(out_img_dir)
 
@@ -175,6 +175,7 @@ const RHO_OPTIONS = [
 //  { label: "ρ = 1.5", folder: "plotsrho1point5_sigma" },
   { label: "ρ = 4", folder: "plotsrho4_gininorm" },
   { label: "ρ = 8", folder: "plotsrho8_gininorm" },
+  { label: "perfect homophily", folder: "plotsperfecthomophily_gininorm" },
 ];
 
 const alpha    = document.getElementById('alpha');

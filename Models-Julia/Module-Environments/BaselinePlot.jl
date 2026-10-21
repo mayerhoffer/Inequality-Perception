@@ -11,24 +11,31 @@ using .HomophilicNetworks
 include("IndividualPerceptions.jl")
 using .IndividualPerceptions
 
-using StatsBase, Combinatorics, Distributions, LinearAlgebra, DataFrames, CSV, Readables, BenchmarkTools, Random,ColorSchemes,Colors, DelimitedFiles, Graphs, Plots, GraphRecipes, NetworkLayout, Random
+using SpecialFunctions, StatsBase, Combinatorics, Distributions, LinearAlgebra, DataFrames, CSV, Readables, BenchmarkTools, Random, ColorSchemes, Colors, DelimitedFiles, Graphs, Plots, NetworkLayout
 
-# using GraphMakie, CairoMakie, Colors, GraphMakie.NetworkLayout
+# Keep Makie's plotting functions qualified so that they do not conflict with
+# Plots.jl functions such as `scatter` used later in this file.
+import CairoMakie
+import GraphMakie
 
+CairoMakie.activate!()
 
 
 ## Create adjacency matrix
 Random.seed!(1)
-incomedistri = income_onegroup_exponential!(1000)
-#incomedistri = income_onegroup_lognormal!(1000,0.25)
+#incomedistri = income_onegroup_exponential!(1000)
+incomedistri = InputDistributions.income_onegroup_lognormal!(1000,0.25)
 #incomedistri = income_onegroup_normal!(1000)
 #incomedistri = income_onegroup_uniform!(1000)
 
-linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(incomedistri,8)
-adjmatr = create_adjacencymatrix!(linksTHISRUN,1000)
 
-CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\adjmatrix_norm-rho10.csv",Tables.table(adjmatr))
-CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\attributedistri_norm.csv",Tables.table(incomedistri))
+linksTHISRUN, linkspernodeTHISRUN = HomophilicNetworks.perfect_homophilic_linkage(incomedistri)
+linksTHISRUN, linkspernodeTHISRUN = HomophilicNetworks.perfect_rank_homophilic_linkage(incomedistri,6)
+#linksTHISRUN, linkspernodeTHISRUN = HomophilicNetworks.homophilic_linkage!(incomedistri,8)
+adjmatr = HomophilicNetworks.create_adjacencymatrix!(linksTHISRUN,1000)
+
+#CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\adjmatrix_norm-rho10.csv",Tables.table(adjmatr))
+#CSV.write("C:\\Users\\dmayerh\\Onedrive - Personal\\OneDrive\\MODUS\\attributedistri_norm.csv",Tables.table(incomedistri))
 
 
 
@@ -40,43 +47,60 @@ g = Graphs.SimpleGraph(adjmatrix_array)
 
 n = Graphs.nv(g)
 
-vals = collect(1:n)
+income_ranks = collect(1:n)
 
-fig, ax, p = graphplot(
+fig, ax, p = GraphMakie.graphplot(
     g;
-    #layout = Shell(),
-    layout = Stress(),
-    # ayout = Spring(;
-    #     iterations = 100,   # increase for nicer convergence (slower)
-    #     seed = 1            # deterministic layout
-    #     # dim = 2           # default
+    layout = NetworkLayout.Spring(
+    C = 8.0,
+    iterations = 300,
+    initialtemp = 3.0,
+    seed = 1,
+    ),
+    # layout = NetworkLayout.SFDP(
+    #     C = 0.8,
+    #     K = 1.0,
+    #     iterations = 250,
+    #     tol = 0.01,
+    #     seed = 1,
+    #     Ptype = Float32,
     # ),
     node_size = 8,
-    node_color = vals,
-    colormap = :grays,
+    node_color = income_ranks,
+    node_attr = (; colormap = :viridis, colorrange = extrema(income_ranks)),
     edge_color = Gray(0.4),
-    edge_width = 0.5, 
+    edge_width = 0.5,
 )
-hidedecorations!(ax); hidespines!(ax)
-            # (often optional now, but fine)
-Colorbar(fig[1, 2], p; label="Income Rank")
+CairoMakie.hidedecorations!(ax)
+CairoMakie.hidespines!(ax)
+CairoMakie.Colorbar(
+    fig[1, 2],
+    GraphMakie.get_node_plot(p);
+    label = "Income Rank",
+)
 fig
 
 
 
 
-nodefillc = incomedistri
-gplot(g, nodefillc=nodefillc)
-
-## Unicoloured nodes
-graphplot(g,
-           node_weights = 1:1000,
-           markercolor = :darkgray,
-           dim = 3,
-           markersize = 5,
-           linecolor = :darkgrey,
-           linealpha = 0.5
-       )
+# Reuse the first layout and color nodes by their actual income.
+income_fig, income_ax, income_plot = GraphMakie.graphplot(
+    g;
+    layout = p[:node_pos][],
+    node_size = 8,
+    node_color = incomedistri,
+    node_attr = (; colormap = :viridis, colorrange = extrema(incomedistri)),
+    edge_color = Gray(0.4),
+    edge_width = 0.5,
+)
+CairoMakie.hidedecorations!(income_ax)
+CairoMakie.hidespines!(income_ax)
+CairoMakie.Colorbar(
+    income_fig[1, 2],
+    GraphMakie.get_node_plot(income_plot);
+    label = "Income",
+)
+income_fig
 
 ##Colour by income of nodes
 
@@ -95,16 +119,20 @@ function rankdifferences(repetitions,population,Rho,gini)
     meanseenincome = [Float64[] for i=1:population]
     stdseenincome = [Float64[] for i=1:population]
          ## The network generation is the most computationally intense task here. It is split in multiple Threads if supported by the Julia environment. (Check in Settings!)
-        Threads.@threads for j in 1:repetitions
-        #for j in 1:repetitions 
+        #Threads.@threads for j in 1:repetitions
+        for j in 1:repetitions 
             Random.seed!(j)
             if isnan(gini)
-                Y = income_onegroup_exponential!(population)
+                Y = InputDistributions.income_onegroup_exponential!(population)
             else
-                Y = income_onegroup_lognormal!(population, 2 * erfinv(gini))
+                Y = InputDistributions.income_onegroup_lognormal!(population, 2 * erfinv(gini))
             end
-            linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(Y, Rho)
-            perceptionlist_meanproperty, perceptionlist_maxproperty, perceptionlist_minproperty, perceptionlist_stdproperty = distri_perceptions!(find_visible_nodes!(Y,linkspernodeTHISRUN))
+            ## Toggle between rho-based (including for a random network for rho = 0) and perfect homophily here
+            #linksTHISRUN, linkspernodeTHISRUN = HomophilicNetworks.homophilic_linkage!(Y, Rho)
+            Y = InputDistributions.expectedvalue_onegroup_lognormal(population,2 * erfinv(gini))
+            linksTHISRUN, linkspernodeTHISRUN = HomophilicNetworks.perfect_rank_homophilic_linkage(Y,6)
+
+            perceptionlist_meanproperty, perceptionlist_maxproperty, perceptionlist_minproperty, perceptionlist_stdproperty = IndividualPerceptions.distri_perceptions!(IndividualPerceptions.find_visible_nodes!(Y,linkspernodeTHISRUN))
             for entry in linkspernodeTHISRUN
                 me = entry[1]
                 neighbours = entry[2:end]
@@ -135,8 +163,9 @@ function rankdifferences(repetitions,population,Rho,gini)
     return higherdiffs, lowerdiffs, alldiffs, minseenranks, maxseenranks, minseenincome, maxseenincome, meanseenincome, stdseenincome
 end
 
-higherdiffs, lowerdiffs, alldiffs, minseenranks, maxseenranks, minseenincome, maxseenincome, meanseenincome, stdseenincome = rankdifferences(100,1000,0,NaN)
-higherdiffs8, lowerdiffs8, alldiffs8, minseenranks8, maxseenranks8, minseenincome8, maxseenincome8, meanseenincome8, stdseenincome8 = rankdifferences(100,1000,8,NaN)
+higherdiffs, lowerdiffs, alldiffs, minseenranks, maxseenranks, minseenincome, maxseenincome, meanseenincome, stdseenincome = rankdifferences(200,1000,0,0.5)
+higherdiffs8, lowerdiffs8, alldiffs8, minseenranks8, maxseenranks8, minseenincome8, maxseenincome8, meanseenincome8, stdseenincome8 = rankdifferences(200,1000,8,0.5)
+higherdiffsP, lowerdiffsP, alldiffsP, minseenranksP, maxseenranksP, minseenincomeP, maxseenincomeP, meanseenincomeP, stdseenincomeP = rankdifferences(1,1000,0,0.5)
 
 
 ranks=collect(1:1000)
@@ -200,8 +229,8 @@ scatter(
 )
 
 ## ...in one plot
-scatter(
-    ranks, mean.(minseenranks8),
+scatter!(
+    ranks, mean.(minseenranksP),
     label = "... Poorest Link-Neighbour",
     xlabel = "Income Rank",
     ylabel = "Mean Rank Difference to...",
@@ -210,8 +239,8 @@ scatter(
     markershape = :cross,
 )
 
-scatter!(
-    ranks, mean.(maxseenranks8),
+scatter(
+    ranks, mean.(maxseenranksP),
     label = "... Richest Link-Neighbour",
     xlabel = "Income Rank",
     ylabel = "Mean Rank Difference to...",
@@ -223,7 +252,7 @@ scatter!(
 
 ## Min mean and max income seen by each income rank
 scatter(
-    ranks, mean.(maxseenincome8),
+    ranks, mean.(maxseenincomeP),
     label = "Highest",
     xlabel = "Income Rank",
     ylabel = "Seen Incomes",
@@ -232,7 +261,7 @@ scatter(
     markershape = :cross
 )
 scatter!(
-    ranks, mean.(meanseenincome8),
+    ranks, mean.(meanseenincomeP),
     label = "Mean",
     xlabel = "Income Rank",
     ylabel = "seen Incomes",
@@ -241,7 +270,7 @@ scatter!(
     markershape = :cross
 )
 scatter!(
-    ranks, mean.(minseenincome8),
+    ranks, mean.(minseenincomeP),
     label = "Lowest",
     xlabel = "Income Rank",
     ylabel = "Seen Incomes",

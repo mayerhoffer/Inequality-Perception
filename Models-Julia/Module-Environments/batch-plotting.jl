@@ -176,6 +176,7 @@ const RHO_OPTIONS = [
   { label: "ρ = 4", folder: "plotsrho4_gininorm" },
   { label: "ρ = 8", folder: "plotsrho8_gininorm" },
   { label: "perfect homophily", folder: "plotsperfecthomophily_gininorm" },
+  { label: "perfect RANK homophily", folder: "plotsperfectrankhomophily_gininorm" },
 ];
 
 const alpha    = document.getElementById('alpha');

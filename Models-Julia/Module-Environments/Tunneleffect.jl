@@ -1,5 +1,4 @@
 ## Import modules and packages
-
 using StatsBase, Random, SpecialFunctions
 
 include("InputDistributions.jl")
@@ -61,15 +60,16 @@ function tunnel_perceptions_gini_perceptionsave(repetitions,population,Rho,giniL
     for i in 1:length(giniList)
         thisgini = giniList[i]
          ## The network generation is the most computationally intense task here. It is split in multiple Threads if supported by the Julia environment. (Check in Settings!)
-        #Threads.@threads for j in 1:repetitions
-        for j in 1:repetitions 
+        Threads.@threads for j in 1:repetitions
+        #for j in 1:repetitions 
             Random.seed!(j)
             ## Toggle between rho-based (including for a random network for rho = 0) and perfect homophily here
-            # Y = income_onegroup_lognormal!(population,2 * erfinv(thisgini))
-            # linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(Y,Rho)
-            Y = InputDistributions.expectedvalue_onegroup_lognormal(population,2 * erfinv(thisgini))
-            linksTHISRUN, linkspernodeTHISRUN = HomophilicNetworks.perfect_homophilic_linkage(Y) 
-            perceptionlist_meanproperty, perceptionlist_maxproperty, perceptionlist_minproperty, perceptionlist_stdproperty = distri_perceptions!(find_visible_nodes!(Y,linkspernodeTHISRUN))
+            Y = income_onegroup_lognormal!(population,2 * erfinv(thisgini))
+            linksTHISRUN, linkspernodeTHISRUN = homophilic_linkage!(Y,Rho)
+            #Y = InputDistributions.expectedvalue_onegroup_lognormal(population,2 * erfinv(thisgini))
+            #linksTHISRUN, linkspernodeTHISRUN = HomophilicNetworks.perfect_homophilic_linkage(Y) 
+            #linksTHISRUN, linkspernodeTHISRUN = HomophilicNetworks.perfect_rank_homophilic_linkage(Y,6)
+            perceptionlist_meanproperty, perceptionlist_maxproperty, perceptionlist_minproperty, perceptionlist_stdproperty = IndividualPerceptions.distri_perceptions!(IndividualPerceptions.find_visible_nodes!(Y,linkspernodeTHISRUN))
             thisrunperceptions = [ thisgini, j, Rho, Y, perceptionlist_meanproperty, perceptionlist_minproperty, perceptionlist_maxproperty ]
             listperceptions[1 + (i - 1) * repetitions + j] = thisrunperceptions
             for k in 1:betalength
@@ -85,6 +85,7 @@ function tunnel_perceptions_gini_perceptionsave(repetitions,population,Rho,giniL
                 end
             end
         end
+        print(i)
     end
     # simulationresultsnobrackets = []
     # for i in simulationresults
@@ -102,7 +103,6 @@ end
 
 ## Define lists for lognorm sigma and weights
 ginis = []
-push!(ginis,0)
 for i in 0:55
     push!(ginis,i/100)
 end
@@ -117,37 +117,86 @@ betas = alphas
 
 
 ## repetitions,population,Rho,sigmaList,alphalist,betalist,gamma
-Rho0 = tunnel_perceptions!(100,1000,0,sigmas,alphas,betas, 50)
+#Rho0 = tunnel_perceptions!(100,1000,0,sigmas,alphas,betas, 50)
 
 perfectHomophily = tunnel_perceptions_gini_perceptionsave(1,1000,"perfectHomophily",ginis,alphas,betas, 50)
+perfectRankHomophily = tunnel_perceptions_gini_perceptionsave(1,1000,"perfectRankHomophily",ginis,alphas,betas, 50)
 
-## Sometimes, splitting the simulation is faviurable if running out of RAM (and swap space) is a concern. In this case, the results of multiple runs can be merged in the end. The following code is an example for how to do this for the Rho0 runs. Adjust file names and variable names as needed for other runs.
-Rho0SPLIT3, Rho0perceptionsSPLIT3 = tunnel_perceptions_gini_perceptionsave!(100,1000,0,ginis,alphas,betas,50)
+## Sometimes, splitting the simulation is favourable if running out of RAM (and swap space) is a concern. In this case, the results of multiple runs can be merged in the end. The following code is an example for how to do this for the Rho0 runs. Adjust file names and variable names as needed for other runs.
+Rho0SPLIT3, Rho0perceptionsSPLIT3 = tunnel_perceptions_gini_perceptionsave(100,1000,0,ginis,alphas,betas,50)
 
+Rho8, Rho8perceptions = tunnel_perceptions_gini_perceptionsave(200,1000,8,ginis,alphas,betas,50)
 
+Rho4, Rho4perceptions = tunnel_perceptions_gini_perceptionsave(200,1000,4,ginis,alphas,betas,50)
+
+Rho0, Rho0perceptions = tunnel_perceptions_gini_perceptionsave(200,1000,0,ginis,alphas,betas,50)
 
 ## TRANSFORM to DF and SAVE
+mywd = "C:\\Users\\dmaye\\OneDrive\\DATIpilot\\Inhaltliches\\Papers\\Hirschman\\SimOutput"
 const working_directory = mywd #pwd()  # set the desired output folder "" 
-
+    
 ## Function to create a perception df for visualisation and storage
 function create_df!(inputdataname)
     header = inputdataname[1]                    # Extract header
     rows = inputdataname[2:end]                  # Extract rows
     outputdf = DataFrame([Symbol(h) => [row[i] for row in rows] for (i, h) in enumerate(header)])
-    return outputdf[.!((outputdf.alpha .+ outputdf.beta) .> 1), :]
+    return outputdf[.!((outputdf.alpha .+ outputdf.beta) .> 1), :]  ## Comment for a percpetion DF
 end
 
 ## Transform into df for visualisation and storage
 using DataFrames, Plots, Statistics, CSV, StatsPlots
 
 
-perfectHomophilytest = create_df!(perfectHomophily[1])
-CSV.write(joinpath(working_directory, "perfectHomophilytest.csv"), perfectHomophilytest)
+rho0gini = create_df!(Rho0)
+CSV.write(joinpath(working_directory, "rho0gini.csv"), rho0gini)
+
+
+# Save a list to CSV for visualisation and storage
+rho0gini_perceptions = create_df!(Rho0perceptions)
+CSV.write(joinpath(working_directory, "rho0perceptionsGini.csv"), rho0gini_perceptions)
+
+workingdf = rho0gini
+
+workingdf = CSV.read(joinpath(working_directory, "rho8gini.csv"), DataFrame)
+
+include("TunnelShapeClassification.jl")
+using .TunnelShapeClassification
+
+rho0_shapes = TunnelShapeClassification.classify_tunnel_shapes(rho0gini;moving_average_window=5, amplitude_tolerance = 0.001)
+display(TunnelShapeClassification.plot_shape_heatmap(
+    rho0_shapes,
+    0.15;
+    prominence_column=:relative_prominence,
+))
+
+rho8gini = CSV.read(joinpath(working_directory, "rho8gini.csv"), DataFrame)
+rho8_shapes = TunnelShapeClassification.classify_tunnel_shapes(rho8gini, amplitude_tolerance = 0.001)
+display(TunnelShapeClassification.plot_shape_heatmap(
+    rho8_shapes,
+    0.15;
+    prominence_column=:relative_prominence,
+))
+display(TunnelShapeClassification.plot_u_counts_against_threshold(
+    rho8_shapes;
+    prominence_column=:relative_prominence,
+))
+
+
+perfectRankHomophily = CSV.read(joinpath(working_directory, "perfectRankHomophilytest.csv"), DataFrame)
+perfectRankHomophily_shapes  = TunnelShapeClassification.classify_tunnel_shapes(perfectRankHomophily, amplitude_tolerance = 0.001)
+display(TunnelShapeClassification.plot_shape_heatmap(
+    perfectRankHomophily_shapes,
+    0.15;
+    prominence_column=:relative_prominence,
+))
 
 
 
-
-
+display(TunnelShapeClassification.plot_shape_heatmap(
+    rho8_shapes,
+    0.15;
+    prominence_column=:relative_prominence,
+))
 
 ## Makeshift overview plots if batch plotting is not desired.
 function create_overviewplot!(alphaofinterest, betaofinterest,df)  

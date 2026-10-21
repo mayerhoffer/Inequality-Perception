@@ -35,11 +35,11 @@ end
 ## LogNormal Expected Value
 function expectedvalue_onegroup_lognormal(population,sigma)
     lognorm = LogNormal(1,sigma)
-    permilles = []
-    for i in 1:1000
-        push!(permilles,i/1001)
+    quantiles = []
+    for i in 1:population
+        push!(quantiles,i/(population + 1))
     end
-    y = quantile.(lognorm,permilles)
+    y = quantile.(lognorm,quantiles)
     y = y/mean(y)
     y = sort(y)
     return y

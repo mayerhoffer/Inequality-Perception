@@ -84,6 +84,38 @@ function perfect_homophilic_linkage(Distri)
 end
 
 
+function perfect_rank_homophilic_linkage(Distri,numlinks)
+    populationsize = length(Distri)
+    linklist = []
+    for i in 1:length(Distri)
+        # get a list of i - numlinks /2 to i + numlinks /2
+        start_index = max(1, i - div(numlinks, 2))
+        end_index = min(populationsize, i + div(numlinks, 2))
+        for j in start_index:end_index
+            pairnow = [i, j]
+            push!(linklist, sort(pairnow))
+        end
+    end
+    ## Cleans up the list of existing links and indicates the link-neighbours for each node
+    linklist = unique(linklist)
+    linksPerNodeList = []
+    for i in 1:populationsize
+        mylinks = []
+        for j in 1:length(linklist)                  ## cycles through all other nodes and checks whether there is a link
+            if i in linklist[j]
+                if linklist[j][1] == i               ## makes sure the other node of the pari, not the one searching, is added
+                    push!(mylinks,linklist[j][2])
+                else
+                    push!(mylinks,linklist[j][1])
+                end
+            end
+        end
+        push!(linksPerNodeList,mylinks)
+    end
+
+    return linklist, linksPerNodeList
+end
+
 
 ## --------------------------------------------------------------------- Helper Functions ---------------------------------------------------------------------
 ## Draws link-neighbours using a weights matrix

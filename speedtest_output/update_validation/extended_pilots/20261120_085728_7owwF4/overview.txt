@@ -1,0 +1,12 @@
+
+Speedtest overview
+Population: 30 | Parameter combinations: 2366 | MC runs per combination: 1
+Completed simulations: 2366
+Simulation seconds: mean 0.000122 | median 0.000105 | min 0.000080 | max 0.022580 | std 0.000463
+Mean stage seconds: income 0.000002 | network 0.000119 | degrees 0.000002
+Mean GC seconds: 0.000009 | Mean allocated memory per run: 0.000 GB (not peak memory)
+Measured simulation time: 0.290 s | Sweep wall time including saving: 1.132 s (0.000 h)
+Throughput including saving: 2090.105623 simulations/s
+Setup and warm-up are excluded. Overall timing variation includes differences between parameter combinations.
+One MC run per combination: within-combination timing variability cannot be estimated.
+Results saved in: C:\Users\dmaye\New folder\Inequality-Perception\speedtest_output\update_validation\extended_pilots\20261120_085728_7owwF4

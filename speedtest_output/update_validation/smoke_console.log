@@ -1,0 +1,23 @@
+Results: C:\Users\dmaye\New folder\Inequality-Perception\speedtest_output\update_validation\smoke_tests\20261120_085724_PZ0tEU
+Population: 30 | Ginis: 2 | rho values: 2 | MC runs per combination: 2
+Warming up Julia before measuring 8 simulations...
+Gini 0.00 | rho  0 | MC   1/2 | simulation 0.000 s
+Saved 2/8 runs. Elapsed 0.00 h; rough remaining estimate 0.00 h.
+Gini 0.00 | rho 25 | MC   1/2 | simulation 0.000 s
+Saved 4/8 runs. Elapsed 0.00 h; rough remaining estimate 0.00 h.
+Gini 0.90 | rho  0 | MC   1/2 | simulation 0.000 s
+Saved 6/8 runs. Elapsed 0.00 h; rough remaining estimate 0.00 h.
+Gini 0.90 | rho 25 | MC   1/2 | simulation 0.000 s
+Saved 8/8 runs. Elapsed 0.00 h; rough remaining estimate 0.00 h.
+
+Speedtest overview
+Population: 30 | Parameter combinations: 4 | MC runs per combination: 2
+Completed simulations: 8
+Simulation seconds: mean 0.000133 | median 0.000118 | min 0.000106 | max 0.000233 | std 0.000041
+Mean stage seconds: income 0.000002 | network 0.000126 | degrees 0.000004
+Mean GC seconds: 0.000000 | Mean allocated memory per run: 0.000 GB (not peak memory)
+Measured simulation time: 0.001 s | Sweep wall time including saving: 0.396 s (0.000 h)
+Throughput including saving: 20.202013 simulations/s
+Setup and warm-up are excluded. Overall timing variation includes differences between parameter combinations.
+Results saved in: C:\Users\dmaye\New folder\Inequality-Perception\speedtest_output\update_validation\smoke_tests\20261120_085724_PZ0tEU
+Finished. Results saved in: C:\Users\dmaye\New folder\Inequality-Perception\speedtest_output\update_validation\smoke_tests\20261120_085724_PZ0tEU

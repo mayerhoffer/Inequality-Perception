@@ -1,0 +1,18 @@
+seed_policy = "seed = base_seed + MC repetition; common random numbers across parameter combinations"
+ginis = [0.0, 0.9]
+julia_version = "1.12.6"
+allocation = "allocated_bytes is cumulative allocation, not peak memory"
+cpu = "arrowlake-s"
+mc_runs = 1
+started_at = "2026-11-20T08:39:11.705"
+timing = "income generation + network generation + degrees; includes GC; excludes setup, warm-up, seeding, scalar summaries and file writing"
+total_runs = 4
+base_seed = 20261120
+save_agent_data = false
+rhos = [0, 25]
+julia_threads = 1
+population = 10000
+sigmas = [0.0, 2.326174307353348]
+execution = "sequential"
+gini = "input is theoretical lognormal Gini; sample_gini is the finite-sample realised Gini"
+os = "NT"

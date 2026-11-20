@@ -1,0 +1,2 @@
+population,parameter_combinations,mc_runs_per_combination,completed_runs,mean_seconds,median_seconds,min_seconds,max_seconds,std_seconds,mean_income_seconds,mean_network_seconds,mean_degree_seconds,mean_allocated_bytes,mean_gc_seconds,total_simulation_seconds,sweep_wall_seconds,runs_per_second
+30,4,2,8,0.00013267499999999999,0.0001176,0.00010559999999999999,0.0002327,4.110119045894969e-5,2.4e-6,0.0001264875,3.7874999999999997e-6,87376.25,0.0,0.0010613999999999999,0.3960001468658447,20.202012709632168

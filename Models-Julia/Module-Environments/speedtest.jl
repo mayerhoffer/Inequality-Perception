@@ -3,7 +3,8 @@
 # GETTING STARTED
 # 1. Install Julia if necessary: https://julialang.org/downloads/
 # 2. Open this file in Julia's VS Code extension and execute each numbered
-#    section in order, or open a terminal in this folder and run:
+#    section in order, or open a terminal in Models-Julia/Module-Environments
+#    and run:
 #        julia --startup-file=no speedtest.jl
 #    For a small installation/output check first, run:
 #        julia --startup-file=no speedtest.jl --smoke-test
@@ -14,8 +15,10 @@
 #    When stepping through the file, choose input_run_mode below instead.
 # Julia itself must already be installed; section 2 installs all Julia packages.
 # The first execution needs internet access and can take several minutes.
-# This file can be copied to another folder on its own: no other model files
-# or prior Julia session setup are needed. All paths are relative to this file.
+# Keep this file beside InputDistributions.jl and HomophilicNetworks.jl in the
+# repository. It loads those modules and installs the repository's packages;
+# no prior Julia session setup is needed. Module paths are relative to this file;
+# results go to the external output directory configured below.
 
 ## 1. Choose the inputs. These are the requested full-sweep defaults.
 input_ginilist = collect(0:90) ./ 100    # 0.00, 0.01, ..., 0.90
@@ -23,7 +26,10 @@ input_Rholist = collect(0:25)           # 0, 1, ..., 25
 input_population = 10_000
 input_repetitions = 100                # MC runs per parameter combination
 input_base_seed = 20261120
-input_working_directory = joinpath(@__DIR__, "speedtest_output")
+# Results are saved outside the repository, under your user home directory.
+# On this Windows account: C:/Users/dmaye/Inequality-Perception-output/speedtest
+# Change this input to another absolute path if desired. The runner creates it.
+input_working_directory = joinpath(homedir(), "Inequality-Perception-output", "speedtest")
 input_run_mode = "full"                # "full", "pilot", "extended-pilot", "smoke-test"
 
 # Optional: save every agent's income and degree, too. The default saves timing
@@ -38,93 +44,33 @@ input_save_agent_data = false
 # intermediate objects. Runs are sequential to avoid multiplying that memory
 # requirement. Times include garbage collection and are elapsed, not CPU, seconds.
 
-## 2. Install the required packages in a dedicated environment.
+## 2. Install the repository's packages and load the existing model modules.
 import Pkg
-speedtest_environment = joinpath(@__DIR__, "speedtest_environment")
+speedtest_environment = normpath(joinpath(@__DIR__, "..", ".."))
 Pkg.activate(speedtest_environment)
-required_packages = ["CSV", "Distributions", "SpecialFunctions", "StatsBase"]
-installed_packages = keys(Pkg.project().dependencies)
-missing_packages = filter(name -> !(name in installed_packages), required_packages)
-isempty(missing_packages) || Pkg.add(missing_packages)
 Pkg.instantiate()
 
-using CSV, Distributions, SpecialFunctions, StatsBase
+using CSV
 using Dates, Random, Statistics, Printf, TOML
 
-## 3. Define the simulation. Execute this entire section together.
-# The income generation, dense weights, five weighted draws without replacement,
-# undirected edge deduplication and neighbour-list scan follow the existing
-# InputDistributions.jl and HomophilicNetworks.jl network baseline. They are
-# included here so this file is standalone. In particular, the expensive
-# neighbour-list scan is preserved: this benchmarks the existing algorithm.
+include(joinpath(@__DIR__, "InputDistributions.jl"))
+include(joinpath(@__DIR__, "HomophilicNetworks.jl"))
 
-function speedtest_income(population, sigma)
-    # Gini = erf(sigma / 2), hence sigma = 2 * erfinv(Gini).
-    # Gini zero is the degenerate equal-income case, handled explicitly.
-    sigma == 0 && return ones(population)
-    income = rand(LogNormal(1, sigma), population)
-    return sort(income / mean(income))
-end
-
-function speedtest_network(income, Rho)
-    population = length(income)
-    weights = zeros(population, population)
-    for i in 1:population
-        for j in 1:(i - 1)
-            weights[i, j] = weights[j, i]
-        end
-        for j in (i + 1):population
-            weights[i, j] = exp(-Rho * abs(income[i] - income[j]))
-        end
-    end
-    items = 1:population
-    linklist = []
-    for i in 1:population
-        if count(w -> w > 0, Weights(weights[:, i])) >= 5
-            neighbours = sample(items, Weights(weights[:, i]), 5; replace=false)
-        else
-            # Same underflow fallback as the baseline for the upper income tail.
-            # Guard against invalid node indices for unusually small samples.
-            neighbours = i > 5 ? collect((i - 5):(i - 1)) :
-                sortperm(abs.(income .- income[i]) .+ ifelse.(items .== i, Inf, 0.0))[1:5]
-        end
-        for neighbour in neighbours
-            push!(linklist, sort([i, neighbour]))
-        end
-    end
-    linklist = unique(linklist)
-    linksPerNodeList = []
-    for i in 1:population
-        mylinks = [i]                  # own income is visible; not an edge
-        for pair in linklist
-            if i in pair
-                push!(mylinks, pair[1] == i ? pair[2] : pair[1])
-            end
-        end
-        push!(linksPerNodeList, mylinks)
-    end
-    return linklist, linksPerNodeList
-end
-
-function speedtest_degrees(linksPerNodeList)
-    degrees = []
-    for neighbours in linksPerNodeList
-        push!(degrees, length(neighbours) - 1)
-    end
-    return degrees
-end
+## 3. Time the existing model functions. Execute this entire section together.
+# All model calculations come from the modules above. This wrapper only seeds
+# the simulation, measures the function calls and collects their results.
 
 function speedtest_simulation(population, sigma, Rho, seed)
     Random.seed!(seed)
-    income_stats = @timed speedtest_income(population, sigma)
-    income = income_stats.value
-    network_stats = @timed speedtest_network(income, Rho)
-    edges, neighbours = network_stats.value
-    degree_stats = @timed speedtest_degrees(neighbours)
-    degrees = degree_stats.value
-    # Conventional sample Gini, with equal incomes giving exactly zero.
-    sample_gini = 2 * sum(i * income[i] for i in eachindex(income)) /
-        (population * sum(income)) - (population + 1) / population
+    income_stats = @timed InputDistributions.income_onegroup_lognormal!(population, sigma)
+    Y = income_stats.value
+    network_stats = @timed HomophilicNetworks.homophilic_linkage!(Y, Rho)
+    linksTHISRUN, linkspernodeTHISRUN = network_stats.value
+    degree_stats = @timed HomophilicNetworks.calculate_degree_distribution!(linkspernodeTHISRUN)
+    degreedistri = degree_stats.value
+    # Preserve the module's Gini convention. Currently real_gini! is the
+    # conventional sample Gini + 1/population (also for equal incomes).
+    sample_gini = InputDistributions.real_gini!(Y)
     measurements = (
         income_seconds=income_stats.time,
         network_seconds=network_stats.time,
@@ -133,11 +79,11 @@ function speedtest_simulation(population, sigma, Rho, seed)
         allocated_bytes=income_stats.bytes + network_stats.bytes + degree_stats.bytes,
         gc_seconds=income_stats.gctime + network_stats.gctime + degree_stats.gctime,
         sample_gini=sample_gini,
-        edge_count=length(edges),
-        mean_degree=mean(degrees),
-        max_degree=maximum(degrees),
+        edge_count=length(linksTHISRUN),
+        mean_degree=mean(degreedistri),
+        max_degree=maximum(degreedistri),
     )
-    return measurements, income, degrees
+    return measurements, Y, degreedistri
 end
 
 ## 4. Define the runner and output files. Execute this entire section together.
@@ -163,7 +109,7 @@ function run_speedtest(; ginilist=input_ginilist, Rholist=input_Rholist,
     @assert !isempty(Rholist) && all(r -> isfinite(r) && r >= 0, Rholist)
     mkpath(working_directory)
     folder = mktempdir(working_directory; prefix=Dates.format(now(), "yyyymmdd_HHMMSS") * "_", cleanup=false)
-    sigmalist = 2 .* erfinv.(ginilist)
+    sigmalist = InputDistributions.ginitosigma!(ginilist)
     total_runs = length(ginilist) * length(Rholist) * repetitions
     settings = Dict(
         "started_at" => string(now()), "julia_version" => string(VERSION),
@@ -175,7 +121,7 @@ function run_speedtest(; ginilist=input_ginilist, Rholist=input_Rholist,
         "seed_policy" => "seed = base_seed + MC repetition; common random numbers across parameter combinations",
         "timing" => "income generation + network generation + degrees; includes GC; excludes setup, warm-up, seeding, scalar summaries and file writing",
         "allocation" => "allocated_bytes is cumulative allocation, not peak memory",
-        "gini" => "input is theoretical lognormal Gini; sample_gini is the finite-sample realised Gini",
+        "gini" => "input is theoretical lognormal Gini; sample_gini is InputDistributions.real_gini!(Y), currently conventional sample Gini + 1/population",
     )
     open(joinpath(folder, "settings.toml"), "w") do io
         TOML.print(io, settings)
@@ -187,10 +133,11 @@ function run_speedtest(; ginilist=input_ginilist, Rholist=input_Rholist,
     @printf("Population: %d | Ginis: %d | rho values: %d | MC runs per combination: %d\n",
         population, length(ginilist), length(Rholist), repetitions)
     println("Warming up Julia before measuring ", total_runs, " simulations...")
-    # Compile both income branches and the rare weight-underflow fallback.
+    # Warm up the module functions, including zero sigma and the upper-tail
+    # weight-underflow fallback, before taking any measurements.
     speedtest_simulation(30, 0.0, 0, base_seed)
-    speedtest_simulation(30, 2 * erfinv(0.9), 25, base_seed)
-    speedtest_network(collect(1.0:30.0), 1_000)
+    speedtest_simulation(30, only(InputDistributions.ginitosigma!([0.9])), 25, base_seed)
+    HomophilicNetworks.homophilic_linkage!(vcat(ones(29), 1000.0), 25)
     GC.gc()
     sweep_start = time()
     completed = 0
@@ -204,13 +151,13 @@ function run_speedtest(; ginilist=input_ginilist, Rholist=input_Rholist,
         agent_path = joinpath(folder, @sprintf("agents_g%03d_rho%02d.csv", gini_index, Rho))
         for repetition in 1:repetitions
             seed = base_seed + repetition
-            measurements, income, degrees = speedtest_simulation(population, sigma, Rho, seed)
+            measurements, Y, degreedistri = speedtest_simulation(population, sigma, Rho, seed)
             push!(rows, merge((gini=gini, sigma=sigma, rho=Rho, mc_run=repetition,
                 seed=seed, population=population), measurements))
             if save_agent_data
                 CSV.write(agent_path, (gini=fill(gini, population), sigma=fill(sigma, population),
                     rho=fill(Rho, population), mc_run=fill(repetition, population), seed=fill(seed, population),
-                    income_rank=collect(1:population), income=income, degree=Int.(degrees));
+                    income_rank=collect(1:population), income=Y, degree=Int.(degreedistri));
                     append=repetition > 1)
             end
             if repetition == 1 || repetition % 10 == 0
